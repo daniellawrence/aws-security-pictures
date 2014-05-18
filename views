@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [[ ${#} -eq 0 ]];then
+    ./find_endpoints2.py
+    exit 1
+fi
+
+ELB=${1}
+
+./find_endpoints2.py ${ELB} > ${ELB}.dot
+dot -T png ${ELB}.dot > ${ELB}.png
+eog ${ELB}.png

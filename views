@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/zsh
+##################################################################
+# Short cutter
+##################################################################
 
 if [[ ${#} -eq 0 ]];then
     ./find_endpoints2.py
@@ -9,4 +12,5 @@ ELB=${1}
 
 ./find_endpoints2.py ${ELB} > ${ELB}.dot
 dot -T png ${ELB}.dot > ${ELB}.png
-eog ${ELB}.png
+mv ${ELB}.png x/${ELB}.png
+#eog ${ELB}.png

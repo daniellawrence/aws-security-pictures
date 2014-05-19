@@ -10,8 +10,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -24,7 +24,7 @@
 import os
 import json
 import sys
-from pprint import pprint
+#from pprint import pprint
 from collections import defaultdict
 
 
@@ -99,7 +99,7 @@ def get_elb_rules(_id):
         <td align="right">%s/TCP</td>
         <td align="right">%s/TCP</td>
         </tr>
-        """ % ( _in, _out)
+        """ % (_in, _out)
         elb_node += rule_html
 
     elb_node += "</table>>];"
@@ -129,11 +129,12 @@ def get_rtb_rules(_id):
         <td align="right">%s</td>
         <td align="right">%s</td>
         </tr>
-        """ % ( route["GatewayId"], route["DestinationCidrBlock"])
+        """ % (route["GatewayId"], route["DestinationCidrBlock"])
         rtb_node += rule_html
 
     rtb_node += "</table>>];"
     print rtb_node
+
 
 def get_sg_rules(_id, direction=None, combine=True):
 
@@ -172,11 +173,12 @@ def get_sg_rules(_id, direction=None, combine=True):
 
     for sg in sg_list:
 
-
         for i in sg['IpPermissions']:
             portrange = "TCP/UDP/ICMP"
             if 'FromPort' in i:
-                portrange = "%s-%s/%s" % (i['FromPort'], i['ToPort'], i['IpProtocol'].upper())
+                portrange = "%s-%s/%s" % (
+                    i['FromPort'], i['ToPort'], i['IpProtocol'].upper()
+                )
             ips = [x['CidrIp'] for x in i['IpRanges']]
             #print " //", i
             if not ips:
@@ -194,8 +196,9 @@ def get_sg_rules(_id, direction=None, combine=True):
         for i in sg['IpPermissionsEgress']:
             portrange = "TCP/UDP/ICMP"
             if 'FromPort' in i:
-                #portrange = "%s-%s" % (i['FromPort'], i['ToPort'])
-                portrange = "%s-%s/%s" % (i['FromPort'], i['ToPort'], i['IpProtocol'].upper())
+                portrange = "%s-%s/%s" % (
+                    i['FromPort'], i['ToPort'], i['IpProtocol'].upper()
+                )
             ips = [x['CidrIp'] for x in i['IpRanges']]
             if not ips:
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
@@ -241,10 +244,7 @@ def get_nacl_rules(_id, direction=None):
       <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
       <td bgcolor="black" align="center"><font color="white">Ports</font></td>
   </tr>
-    """ % (
-        "_".join(_id),
-        "_".join(_id)
-        )
+    """ % ("_".join(_id), "_".join(_id))
 
         egress_node = """
 
@@ -257,10 +257,8 @@ def get_nacl_rules(_id, direction=None):
       <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
       <td bgcolor="black" align="center"><font color="white">Ports</font></td>
   </tr>
-    """ % (
-        "_".join(_id),
-        "_".join(_id)
-        )
+    """ % ("_".join(_id), "_".join(_id))
+
         P_MAP = {
             '6': 'TCP',
             '17': 'UDP'
@@ -269,18 +267,22 @@ def get_nacl_rules(_id, direction=None):
             portrange = "TCP/UDP/ICMP"
             if "PortRange" in e:
                 protocol = P_MAP[e['Protocol']]
-                portrange = "%d-%d/%s" %(e['PortRange']['From'], e['PortRange']['To'], protocol)
-            rule = "%s %s %s %s" % (e['RuleNumber'], e['RuleAction'], e['CidrBlock'], portrange)
+                portrange = "%d-%d/%s" %(
+                    e['PortRange']['From'], e['PortRange']['To'], protocol
+                )
+            rule = "%s %s %s %s" % (
+                e['RuleNumber'], e['RuleAction'], e['CidrBlock'], portrange
+            )
             rule_color = "red"
             if e['RuleAction'] == "allow":
                 rule_color = "green"
             rule_html = """
-  <tr>
-      <td bgcolor="%s" align="left">%s</td>
-      <td align="right">%s</td>
-      <td align="right">%s</td>
-   </tr>
-""" % ( rule_color, e['RuleNumber'], e['CidrBlock'], portrange)
+            <tr>
+            <td bgcolor="%s" align="left">%s</td>
+            <td align="right">%s</td>
+            <td align="right">%s</td>
+            </tr>
+            """ % (rule_color, e['RuleNumber'], e['CidrBlock'], portrange)
 
             if e['Egress']:
                 egress.append(rule)
@@ -352,7 +354,6 @@ def main():
         nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
         layer_1['nacl_raw'] = nacl
         layer_1['nacl'] = [x['NetworkAclId'] for x in nacl]
-        
         # Instances
         layer_2['instances'] = instances
 

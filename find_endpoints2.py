@@ -87,8 +87,8 @@ def get_elb_rules(_id):
     </tr>
     -->
     <tr>
-    <td bgcolor="black" align="center"><font color="white">source</font></td>
-    <td bgcolor="black" align="center"><font color="white">desitination</font></td>
+    <td bgcolor="black" align="center"><font color="white">Target</font></td>
+    <td bgcolor="black" align="center"><font color="white">Destination</font></td>
     </tr>
     """ % (_id, _id)
     for l in elb['ListenerDescriptions']:
@@ -225,6 +225,8 @@ def get_nacl_rules(_id, direction=None):
     else:
         acl_list = get_network_acl("--network-acl-ids %s" % _id)
 
+    #_id = _id.replace(' ', '_')
+
     ingress = []
     egress = []
 
@@ -232,21 +234,33 @@ def get_nacl_rules(_id, direction=None):
         ingress_node = """
 "%s_in_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<<table border="1" cellborder="0" cellpadding="3" bgcolor="white">
   <tr>
-      <td bgcolor="black" align="center"><font color="white">Rule #</font></td>
-      <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
-      <td bgcolor="black" align="center"><font color="white">Ports</font></td>
+      <td bgcolor="black" align="center" colspan="3"><font color="white">%s_in_rules</font></td>
   </tr>
-    """ % _id[0]
-
-        egress_node = """
-
-"%s_out_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<<table border="1" cellborder="0" cellpadding="3" bgcolor="white">
   <tr>
       <td bgcolor="black" align="center"><font color="white">Rule #</font></td>
       <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
       <td bgcolor="black" align="center"><font color="white">Ports</font></td>
   </tr>
-""" % _id[0]
+    """ % (
+        "_".join(_id),
+        "_".join(_id)
+        )
+
+        egress_node = """
+
+"%s_out_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<<table border="1" cellborder="0" cellpadding="3" bgcolor="white">
+  <tr>
+      <td bgcolor="black" align="center" colspan="3"><font color="white">%s_out_rules</font></td>
+  </tr>
+  <tr>
+      <td bgcolor="black" align="center"><font color="white">Rule #</font></td>
+      <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
+      <td bgcolor="black" align="center"><font color="white">Ports</font></td>
+  </tr>
+    """ % (
+        "_".join(_id),
+        "_".join(_id)
+        )
         P_MAP = {
             '6': 'TCP',
             '17': 'UDP'
@@ -345,25 +359,27 @@ def main():
     if ONLY_SHOW_ELBS:
         sys.exit(0)
 
-    instance_filter = "--instance-ids %s" % ",".join(layer_2['instances'])
+    instance_filter = "--instance-ids %s" % " ".join(layer_2['instances'])
     instances = get_ec2_instances(instance_filter)
 
     for i in instances:
         i = i['Instances'][0]
-        #pprint(i)
         securitygroups = [x['GroupId'] for x in i['SecurityGroups']]
         subnets = [i['SubnetId']]
 
         layer_2['subnets'] += subnets
         layer_2['securitygroups'] += securitygroups
-        layer_2['instances'] = i['InstanceId']
-        layer_2['instances_raw'] = instances
+        layer_2['instances'].append(i['InstanceId'])
+        layer_2['instances_raw'] += instances
 
         # Network ACL
         subnets_csv = ",".join(subnets)
         nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_2['nacl_raw'] = nacl
-        layer_2['nacl'] = [x['NetworkAclId'] for x in nacl]
+        layer_2['nacl_raw'] += nacl
+        layer_2['nacl'] += [x['NetworkAclId'] for x in nacl]
+
+    layer_2['securitygroups'] = list(set(layer_2['securitygroups']))
+    layer_2['instances'] = list(set(layer_2['instances']))
 
     rule_map = [
         "%s_in" % "_".join(layer_1["nacl"]),
@@ -479,16 +495,18 @@ def main():
     ]
 
     print '"l2_%s_in" -> "l2_%s_in";' % ('_'.join(layer_2['nacl']),
-                                     '_'.join(layer_2['securitygroups']))
+                                     '_'.join(layer_2['securitygroups'])
+    )
     print '"l2_%s_in" -> "l2_%s";' % ('_'.join(layer_2['securitygroups']),
-                                  layer_2['instances'])
-    print '"l2_%s" [label="%s"];' % (
-        layer_2['instances'],
-        layer_2['instances']
+                                      " ".join(layer_2['instances'])
+    )
+    print '"l2_%s" [label="Instances\\n%s"];' % (
+        " ".join(layer_2['instances']),
+        "\\n".join(layer_2['instances'])
     )
 
     print '"l2_%s" -> "l2_%s_out";' % (
-        layer_2['instances'],
+        " ".join(layer_2['instances']),
         '_'.join(layer_2['securitygroups']),
     )
     print '"l2_%s_out" -> "l2_%s_out";' % (

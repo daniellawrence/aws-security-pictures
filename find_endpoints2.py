@@ -1,4 +1,26 @@
 #!/usr/bin/env python
+# The MIT License (MIT)
+# 
+# Copyright (c) 2014 Daniel Lawrence <dannyla@linux.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import os
 import json
 import sys
@@ -74,8 +96,8 @@ def get_elb_rules(_id):
         _out = l['Listener']['InstancePort']
         rule_html = """
         <tr>
-        <td align="right">%s</td>
-        <td align="right">%s</td>
+        <td align="right">%s/TCP</td>
+        <td align="right">%s/TCP</td>
         </tr>
         """ % ( _in, _out)
         elb_node += rule_html
@@ -152,10 +174,11 @@ def get_sg_rules(_id, direction=None, combine=True):
 
 
         for i in sg['IpPermissions']:
-            portrange = "-1"
+            portrange = "TCP/UDP/ICMP"
             if 'FromPort' in i:
-                portrange = "%s-%s" % (i['FromPort'], i['ToPort'])
+                portrange = "%s-%s/%s" % (i['FromPort'], i['ToPort'], i['IpProtocol'].upper())
             ips = [x['CidrIp'] for x in i['IpRanges']]
+            #print " //", i
             if not ips:
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
             ips = "<Br />".join(ips)
@@ -169,9 +192,10 @@ def get_sg_rules(_id, direction=None, combine=True):
             ingress_node += rule_html
 
         for i in sg['IpPermissionsEgress']:
-            portrange = "-1"
+            portrange = "TCP/UDP/ICMP"
             if 'FromPort' in i:
-                portrange = "%s-%s" % (i['FromPort'], i['ToPort'])
+                #portrange = "%s-%s" % (i['FromPort'], i['ToPort'])
+                portrange = "%s-%s/%s" % (i['FromPort'], i['ToPort'], i['IpProtocol'].upper())
             ips = [x['CidrIp'] for x in i['IpRanges']]
             if not ips:
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
@@ -223,10 +247,15 @@ def get_nacl_rules(_id, direction=None):
       <td bgcolor="black" align="center"><font color="white">Ports</font></td>
   </tr>
 """ % _id[0]
+        P_MAP = {
+            '6': 'TCP',
+            '17': 'UDP'
+            }
         for e in acl['Entries']:
-            portrange = "-1"
+            portrange = "TCP/UDP/ICMP"
             if "PortRange" in e:
-                portrange = "%d-%d" %(e['PortRange']['From'], e['PortRange']['To'])
+                protocol = P_MAP[e['Protocol']]
+                portrange = "%d-%d/%s" %(e['PortRange']['From'], e['PortRange']['To'], protocol)
             rule = "%s %s %s %s" % (e['RuleNumber'], e['RuleAction'], e['CidrBlock'], portrange)
             rule_color = "red"
             if e['RuleAction'] == "allow":
@@ -502,13 +531,64 @@ def main():
 
     get_elb_rules(layer_1["endpoint"])
 
+
+    groups_html = """
+    "all_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
+    <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
+    <tr>
+       <td bgcolor="black" align="center"><font color="white">section</font></td> 
+       <td bgcolor="black" align="center"><font color="white">items</font></td> 
+    </tr>
+  <tr>
+      <td>Public Network ACL</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Public Security Groups</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Public ELB</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Public to Private Routes</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Private Network ACL</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Private Security Groups</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Private Instances</td>
+      <td>%s</td>
+  </tr>
+  </table>
+    >];
+    """ % (
+        " ".join(layer_1["nacl"]),
+        " ".join(layer_1["securitygroups"]),
+        layer_1["endpoint"],
+        " ".join(layer_1['routetable']),
+        " ".join(layer_2["nacl"]),
+        " ".join(layer_2["securitygroups"]),
+        layer_2["instances"]
+    )
+
+    #print groups_html
     print "}"
     #get_nacl_rules(layer_1["nacl"] + layer_2["nacl"])
     return
 
+    return
     print 
     print 
     print "------ LAYER 1 -----------"
+    
 
     print "nacl - in  ", " ".join(layer_1["nacl"])
     print "sg   - in  ", " ".join(layer_1["securitygroups"])

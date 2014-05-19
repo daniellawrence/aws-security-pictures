@@ -450,27 +450,25 @@ def main():
     print 'label = "Public Subnet\\n%s"' % "\\n".join(layer_1["subnets"])
     print "}"
 
-
     print "subgraph cluster_2 {"
     print '"l1_%s_out" -> "%s";' % (
-        "_".join(layer_1["nacl"]), 
+        "_".join(layer_1["nacl"]),
         "_".join(layer_1["routetable"]),
     )
     print '"%s" -> "%s_rules";' % (
-        "_".join(layer_1["routetable"]), 
+        "_".join(layer_1["routetable"]),
         "_".join(layer_1["routetable"])
     )
     print '{rank=same; "%s" "%s_rules"};' % (
-        "_".join(layer_1["routetable"]), 
+        "_".join(layer_1["routetable"]),
         "_".join(layer_1["routetable"])
     )
-
 
     print 'label = "Routers"'
 
     print '"%s" [label="Route Tables\\n%s"];' % (
-        "_".join(layer_1["routetable"]), 
-        "\\n".join(layer_1["routetable"]), 
+        "_".join(layer_1["routetable"]),
+        "\\n".join(layer_1["routetable"]),
     )
 
     print "}"
@@ -479,7 +477,7 @@ def main():
 
     print '"%s" -> "l2_%s_in";' % (
         "_".join(layer_1["routetable"]),
-        "_".join(layer_2["nacl"]), 
+        "_".join(layer_2["nacl"]),
     )
 
     print 
@@ -488,18 +486,20 @@ def main():
     print 
 
     rule_map = [
-        '%s_in'  % '_'.join(layer_2['nacl']),
-        '%s_in'  % '_'.join(layer_2['securitygroups']),
-        #'%s'     % layer_2['instances'],
-        '%s_out'  % '_'.join(layer_2['securitygroups']),
+        '%s_in' % '_'.join(layer_2['nacl']),
+        '%s_in' % '_'.join(layer_2['securitygroups']),
+        #'%s' % layer_2['instances'],
+        '%s_out' % '_'.join(layer_2['securitygroups']),
         '%s_out' % '_'.join(layer_2['nacl']),
     ]
 
-    print '"l2_%s_in" -> "l2_%s_in";' % ('_'.join(layer_2['nacl']),
-                                     '_'.join(layer_2['securitygroups'])
+    print '"l2_%s_in" -> "l2_%s_in";' % (
+        '_'.join(layer_2['nacl']),
+        '_'.join(layer_2['securitygroups'])
     )
-    print '"l2_%s_in" -> "l2_%s";' % ('_'.join(layer_2['securitygroups']),
-                                      " ".join(layer_2['instances'])
+    print '"l2_%s_in" -> "l2_%s";' % (
+        '_'.join(layer_2['securitygroups']),
+        " ".join(layer_2['instances'])
     )
     print '"l2_%s" [label="Instances\\n%s"];' % (
         " ".join(layer_2['instances']),
@@ -512,7 +512,7 @@ def main():
     )
     print '"l2_%s_out" -> "l2_%s_out";' % (
         '_'.join(layer_2['securitygroups']),
-        '_'.join(layer_2['nacl']), 
+        '_'.join(layer_2['nacl']),
     )
 
     #print '"l1_%s";' % layer_2["instances"]
@@ -520,7 +520,7 @@ def main():
     for item in rule_map:
         print '"l2_%s" -> "%s_rules";' % (item, item)
         print '{rank=same; "l2_%s" "%s_rules"};' % (item, item)
-    
+
     print 'label = "Private Subnet\\n%s"' % "\\n".join(layer_2["subnets"])
 
     print '"l2_%s_in" [label="Network ACL (inbound)\\n%s"];' % (

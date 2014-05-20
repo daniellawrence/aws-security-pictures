@@ -16,10 +16,18 @@ How to Install
 How to run
 ----------
 
+Generate a picture of an elb.
+
 	$ ./main.py <elbname>
+
+Generate a list of all elbs
+
+	$ ./main.py
 	
 
-Example
--------
+Examples
+--------
+
+ELB pointing to a single instances.
 
 ![](https://raw.githubusercontent.com/daniellawrence/aws-security-pictures/master/examples/simple_example.png)

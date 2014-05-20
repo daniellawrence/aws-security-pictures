@@ -1,0 +1,6 @@
+Tuesday 20 May
+---------------------------------
+
+* Added extra column in security groups to show the sg ID
+  If more than a single security group is attach to the instance or
+  elb.

@@ -138,38 +138,35 @@ def get_rtb_rules(_id):
 
 def get_sg_rules(_id, direction=None, combine=True):
 
-    _id = ' '.join(_id)
+    mutiple_sg = False
+    sg_field_tr = ''
+    if len(_id) > 1:
+        sg_field_tr = '<td bgcolor="black" align="center"><font color="white">SG</font></td>'
+        mutiple_sg = True
 
+    _id = ' '.join(_id)
     sg_list = get_security_groups("--group-ids %s" % _id)
     _id = _id.replace(' ', '_')
 
     ingress_node = """
     "%s_in_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
-    <!--
-        <tr>
-          <td bgcolor="black" align="center" colspan="2"><font color="white">%s_in_rules</font></td> 
-       </tr>
-    -->
         <tr>
           <td bgcolor="black" align="center"><font color="white">CIDR</font></td> 
           <td bgcolor="black" align="center"><font color="white">Ports</font></td>
+          %s
         </tr>
-    """ % (_id, _id)
+    """ % (_id, sg_field_tr)
 
     egress_node = """
         "%s_out_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
-    <!--
-        <tr>
-          <td bgcolor="black" align="center" colspan="2"><font color="white">%s_out_rules</font></td> 
-       </tr>
-    -->
         <tr>
           <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
           <td bgcolor="black" align="center"><font color="white">Ports</font></td>
+          %s
         </tr>
-    """ % (_id, _id)
+    """ % (_id, sg_field_tr)
 
     for sg in sg_list:
 
@@ -185,12 +182,17 @@ def get_sg_rules(_id, direction=None, combine=True):
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
             ips = "<Br />".join(ips)
 
+            sg_id = ''
+            if mutiple_sg:
+                sg_id = '<td>%s</td>' % sg['GroupId']
+
             rule_html = """
             <tr>
             <td bgcolor="green" align="left">%s</td>
             <td align="right">%s</td>
+            %s
             </tr>
-            """ % (ips, portrange)
+            """ % (ips, portrange, sg_id)
             ingress_node += rule_html
 
         for i in sg['IpPermissionsEgress']:
@@ -203,12 +205,16 @@ def get_sg_rules(_id, direction=None, combine=True):
             if not ips:
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
             ips = "<Br />".join(ips)
+            sg_id = ''
+            if mutiple_sg:
+                sg_id = '<td>%s</td>' % sg['GroupId']
             rule_html = """
             <tr>
             <td bgcolor="green" align="left">%s</td>
             <td align="right">%s</td>
+            %s
             </tr>
-            """ % (ips, portrange)
+            """ % (ips, portrange, sg_id)
             egress_node += rule_html
     ingress_node += "</table>>];"
     egress_node += "</table>>];"

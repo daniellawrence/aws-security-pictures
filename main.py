@@ -429,14 +429,6 @@ def main():
     )
 
     get_sg_rules(layer_1["securitygroups"])
-    #for sg in layer_1["securitygroups"]:
-    #    print '"l1_%s_in" -> "l1_%s_in";' % ("_".join(layer_1["nacl"]), sg)
-    #    print '"l1_%s_in" -> "l1_%s";' % (sg, layer_1["endpoint"])
-    #    rule_map.append("%s_in" % sg)
-    #    rule_map.append("%s_out" % sg)
-
-    #    print '"l1_%s" -> "l1_%s_out";' % (layer_1["endpoint"], sg)
-    #    print '"l1_%s_out" -> "l1_%s_out";' % (sg, "_".join(layer_1["nacl"]))
 
     print '"l1_%s" [label="%s"];' % (
         layer_1["endpoint"],
@@ -480,10 +472,6 @@ def main():
         "_".join(layer_2["nacl"]),
     )
 
-    print 
-    print 
-    print 
-    print 
 
     rule_map = [
         '%s_in' % '_'.join(layer_2['nacl']),
@@ -514,8 +502,6 @@ def main():
         '_'.join(layer_2['securitygroups']),
         '_'.join(layer_2['nacl']),
     )
-
-    #print '"l1_%s";' % layer_2["instances"]
 
     for item in rule_map:
         print '"l2_%s" -> "%s_rules";' % (item, item)
@@ -598,47 +584,7 @@ def main():
         layer_2["instances"]
     )
 
-    #print groups_html
     print "}"
-    #get_nacl_rules(layer_1["nacl"] + layer_2["nacl"])
-    return
-
-    return
-    print 
-    print 
-    print "------ LAYER 1 -----------"
-    
-
-    print "nacl - in  ", " ".join(layer_1["nacl"])
-    print "sg   - in  ", " ".join(layer_1["securitygroups"])
-    print "elb        ", layer_1["endpoint"]
-    print "ip map     ", " ".join(layer_1["mappings"])
-    print "sg   - out ", " ".join(layer_1["securitygroups"])
-    print "nacl - out ", " ".join(layer_1["nacl"])
-
-    print 
-    print "---------------------------"
-    print
-    print
-    print "--------- RTB -------------"
-    print "routetable  ", " ".join(layer_1['routetable'])
-
-    #for i in layer_1['routetable_raw']:
-    #    for r in i['Routes']:
-    #        print "%-15s %-10s"% (r['GatewayId'], r['DestinationCidrBlock'])
-    
-    print "---------------------------"
-
-    print
-    print
-    print "------- LAYER 2 -----------"
-    print "nacl - in  ", " ".join(layer_2["nacl"])
-    print "sg   - in  ", " ".join(layer_2["securitygroups"])
-    print "instance   ", layer_2["instances"]
-    print "sg   - out ", " ".join(layer_2["securitygroups"])
-    print "nacl - out ", " ".join(layer_2["nacl"])
-
-    print "-----------------------------"
 
 if __name__ == '__main__':
     main()

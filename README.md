@@ -23,6 +23,15 @@ Generate a picture of an elb.
 Generate a list of all elbs
 
 	$ ./main.py
+
+Generate all rules within a subnet for review
+
+	$ ./firewall_review.py > x.dot; fdp -Tpng x.dot >x.png; eog x.png
+
+Generate the relationships of all the items with a account
+
+	$ ./relationships.py > x.dot; fdp -Tpng x.dot >x.png; eog x.png
+	
 	
 
 Examples

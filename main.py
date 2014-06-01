@@ -27,18 +27,50 @@ import sys
 #from pprint import pprint
 from collections import defaultdict
 
+os.popen('mkdir -p /tmp/aws-cache').read()
+
+
+def aws_command(cmd):
+    safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ','_')
+    print "// %s" % cmd,
+
+    if os.path.exists(safe_cmd):
+        print " HIT"
+        with open(safe_cmd, 'r') as jsonfile:
+            raw_json = json.load(jsonfile)
+            return raw_json
+    print " MISS"
+
+    raw = os.popen(cmd).read()
+    raw_json = json.loads(raw)
+
+    with open(safe_cmd, 'w') as outfile:
+        json.dump(raw_json, outfile)
+
+    return raw_json
+
+
+def get_rds(lookup_filter=''):
+    lookup_cmd = "aws rds describe-db-instances %s" % lookup_filter
+    rds = aws_command(lookup_cmd)
+    return rds['DBInstances']
+
+
+def get_subnets(lookup_filter=''):
+    lookup_cmd = "aws ec2 describe-subnets %s" % lookup_filter
+    subnets = aws_command(lookup_cmd)
+    return subnets['Subnets']
+
 
 def get_load_balancers(lookup_filter=''):
     lookup_cmd = "aws elb describe-load-balancers %s" % lookup_filter
-    raw_load_balancers = os.popen(lookup_cmd).read()
-    load_balancers = json.loads(raw_load_balancers)
+    load_balancers = aws_command(lookup_cmd)
     return load_balancers['LoadBalancerDescriptions']
 
 
 def get_ec2_instances(lookup_filter=''):
     lookup_cmd = "aws ec2 describe-instances %s" % lookup_filter
-    raw_ec2_instances = os.popen(lookup_cmd).read()
-    ec2_instances = json.loads(raw_ec2_instances)
+    ec2_instances = aws_command(lookup_cmd)
     return ec2_instances['Reservations']
 
 
@@ -51,16 +83,14 @@ def get_security_groups(lookup_filter=''):
         return r
 
     lookup_cmd = "aws ec2 describe-security-groups %s" % lookup_filter
-    raw_security_groups = os.popen(lookup_cmd).read()
-    security_groups = json.loads(raw_security_groups)
+    security_groups = aws_command(lookup_cmd)
     return security_groups['SecurityGroups']
 
 
 def get_routetables(lookup_filter=''):
     lookup_cmd = "aws ec2 describe-route-tables %s" % lookup_filter
-    raw_security_groups = os.popen(lookup_cmd).read()
-    security_groups = json.loads(raw_security_groups)
-    return security_groups['RouteTables']
+    rtb = aws_command(lookup_cmd)
+    return rtb['RouteTables']
 
 
 def get_network_acl(lookup_filter=''):
@@ -71,9 +101,8 @@ def get_network_acl(lookup_filter=''):
             r += s
         return r
     lookup_cmd = "aws ec2 describe-network-acls %s" % lookup_filter
-    raw_security_groups = os.popen(lookup_cmd).read()
-    security_groups = json.loads(raw_security_groups)
-    return security_groups['NetworkAcls']
+    nacl = aws_command(lookup_cmd)
+    return nacl['NetworkAcls']
 
 
 def get_elb_rules(_id):
@@ -325,6 +354,7 @@ def main():
         ONLY_SHOW_THIS_ELB = sys.argv[1]
 
     for elb in load_balancers:
+
         elbname = elb['LoadBalancerName']
         if ONLY_SHOW_ELBS:
             print elbname

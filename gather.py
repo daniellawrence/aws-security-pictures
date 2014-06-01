@@ -23,6 +23,22 @@ def memorize(function):
 
 
 @memorize
+def expand_tags(item):
+    tags = {}
+
+    if 'Tags' not in item:
+        return item
+
+    for kv in item['Tags']:
+        k = "tag_%s" % kv['Key']
+        v = kv['Value']
+        tags[k] = v
+
+    item.update(tags)
+    return item
+
+
+@memorize
 def get_all_subnet():
     all_subnets = {}
     for subnet in get_subnets():
@@ -44,6 +60,7 @@ def get_all_instances():
             get_all_securitygroups()
         )
         instance["SecurityGroups"] = instance_securitygroups
+        instance = expand_tags(instance)
         all_ec2[instance_id] = instance
 
     return all_ec2
@@ -61,6 +78,7 @@ def get_instances_in(subnet_id):
             get_all_securitygroups()
         )
         instance["SecurityGroups"] = instance_securitygroups
+        instance = expand_tags(instance)
         all_ec2[instance_id] = instance
 
     return all_ec2
@@ -93,6 +111,7 @@ def get_all_elb(subnet_id=None):
             get_all_instances()
         )
         elb["Instances"] = elb_instances
+        elb = expand_tags(elb)
         all_elb[elb_name] = elb
     return all_elb
 
@@ -108,6 +127,7 @@ def get_subnet_acl(subnet_id):
     acl_filter = "--filters Name=association.subnet-id,Values=%s" % subnet_id
     for nacl in get_network_acl(acl_filter):
         nacl_id = nacl['NetworkAclId']
+        nacl = expand_tags(nacl)
         all_nacl[nacl_id] = nacl
     return all_nacl
 

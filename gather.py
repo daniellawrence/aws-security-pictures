@@ -117,10 +117,17 @@ def get_rds_in(subnet_id):
     all_rds = {}
     rds_filter = ""
     for rds in get_rds(rds_filter):
-        rds_sn_ids = [ s['SubnetIdentifier'] for s in rds['DBSubnetGroup']['Subnets']]
+        rds_sn_ids = [s['SubnetIdentifier'] for s in rds['DBSubnetGroup']['Subnets']]
         rds_id = rds['DBInstanceIdentifier']
         if subnet_id not in rds_sn_ids:
             continue
+        rds_sg_ids = [s['VpcSecurityGroupId'] for s in rds['VpcSecurityGroups']]
+        rds_securitygroups = grab_from(
+            rds_sg_ids,
+            get_all_securitygroups()
+        )
+        rds['SecurityGroups'] = rds_securitygroups
+        rds = expand_tags(rds)
         all_rds[rds_id] = rds
     return all_rds
 

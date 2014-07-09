@@ -534,8 +534,9 @@ def collectLayer2(elb):
     instances = [x['InstanceId'] for x in elb['Instances']]
     data['instances'] = instances
 
-    instance_filter = "--instance-ids %s" % " ".join(data['instances'])
+    instance_filter = "--instance-ids %s" % " ".join(instances)
     instances = get_ec2_instances(instance_filter)
+    data['instances_raw'] = instances
 
     for i in instances:
         i = i['Instances'][0]
@@ -545,7 +546,6 @@ def collectLayer2(elb):
         data['subnets'] += subnets
         data['securitygroups'] += securitygroups
         data['instances'].append(i['InstanceId'])
-        data['instances_raw'] += instances
 
         # Network ACL
         subnets_csv = ",".join(subnets)

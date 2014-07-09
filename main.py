@@ -310,7 +310,7 @@ def get_nacl_rules(_id, fh, direction=None):
                 protocol = P_MAP[e['Protocol']]
                 portrange = "%d-%d/%s" % (
                     e['PortRange']['From'], e['PortRange']['To'], protocol
-                 )
+                )
             rule = "%s %s %s %s" % (
                 e['RuleNumber'], e['RuleAction'], e['CidrBlock'], portrange
             )
@@ -560,6 +560,57 @@ def collectLayer2(elb):
 
 
 ###############################################################################
+def generateGroups(layer1, layer2, fh):
+    # Not currently used
+    groups_html = """
+    "all_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
+    <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
+    <tr>
+       <td bgcolor="black" align="center"><font color="white">section</font></td>
+       <td bgcolor="black" align="center"><font color="white">items</font></td>
+    </tr>
+  <tr>
+      <td>Public Network ACL</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Public Security Groups</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Public ELB</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Public to Private Routes</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Private Network ACL</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Private Security Groups</td>
+      <td>%s</td>
+  </tr>
+  <tr>
+      <td>Private Instances</td>
+      <td>%s</td>
+  </tr>
+  </table>
+    >];
+    """ % (
+        " ".join(layer1["nacl"]),
+        " ".join(layer1["securitygroups"]),
+        layer1["endpoint"],
+        " ".join(layer1['routetable']),
+        " ".join(layer2["nacl"]),
+        " ".join(layer2["securitygroups"]),
+        layer2["instances"]
+    )
+
+
+###############################################################################
 def generateHeader(fh):
     fh.write("digraph g {\n")
     fh.write('node [margin=0 width=0.5 shape="plaintext"]\n')
@@ -602,68 +653,20 @@ def main():
         sys.exit(0)
 
     generateHeader(fh)
-
     generatePublicSubnet('1', layer_1, layer_2, fh=fh)
     generateRouters('2', layer_1, layer_2, fh=fh)
     generatePrivateSubnet('3', layer_1, layer_2, fh=fh)
 
-
     get_sg_rules(layer_2["securitygroups"], fh=fh)
-
     get_rtb_rules(layer_1["routetable"], fh=fh)
     get_nacl_rules(layer_1["nacl"], fh=fh)
     get_nacl_rules(layer_2["nacl"], fh=fh)
-
     get_elb_rules(layer_1["endpoint"], fh=fh)
-
-    groups_html = """
-    "all_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
-    <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
-    <tr>
-       <td bgcolor="black" align="center"><font color="white">section</font></td>
-       <td bgcolor="black" align="center"><font color="white">items</font></td>
-    </tr>
-  <tr>
-      <td>Public Network ACL</td>
-      <td>%s</td>
-  </tr>
-  <tr>
-      <td>Public Security Groups</td>
-      <td>%s</td>
-  </tr>
-  <tr>
-      <td>Public ELB</td>
-      <td>%s</td>
-  </tr>
-  <tr>
-      <td>Public to Private Routes</td>
-      <td>%s</td>
-  </tr>
-  <tr>
-      <td>Private Network ACL</td>
-      <td>%s</td>
-  </tr>
-  <tr>
-      <td>Private Security Groups</td>
-      <td>%s</td>
-  </tr>
-  <tr>
-      <td>Private Instances</td>
-      <td>%s</td>
-  </tr>
-  </table>
-    >];
-    """ % (
-        " ".join(layer_1["nacl"]),
-        " ".join(layer_1["securitygroups"]),
-        layer_1["endpoint"],
-        " ".join(layer_1['routetable']),
-        " ".join(layer_2["nacl"]),
-        " ".join(layer_2["securitygroups"]),
-        layer_2["instances"]
-    )
     generateFooter(fh)
 
 
+###############################################################################
 if __name__ == '__main__':
     main()
+
+#EOF

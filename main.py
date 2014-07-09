@@ -30,10 +30,9 @@ from collections import defaultdict
 
 aws_flags = ['--no-verify-ssl']
 
-os.popen('mkdir -p /tmp/aws-cache').read()
-
 
 def aws_command(cmd):
+    os.popen('mkdir -p /tmp/aws-cache').read()
     safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ', '_')
     if verbose:
         sys.stderr.write("%s" % cmd)
@@ -347,6 +346,26 @@ def get_nacl_rules(_id, fh, direction=None):
     return ingress_node, egress_node
 
 
+###############################################################################
+def generateRouters(subgraph, data, fh):
+    rt = "_".join(data["routetable"])
+
+    fh.write("subgraph cluster_%s {\n" % subgraph)
+    fh.write('"l1_%s_out" -> "%s";\n' % (
+        "_".join(data["nacl"]),
+        rt,
+    ))
+    fh.write('"%s" -> "%s_rules";\n' % (rt, rt))
+    fh.write('{rank=same; "%s" "%s_rules"};\n' % (rt, rt))
+    fh.write('label = "Routers"\n')
+    fh.write('"%s" [label="Route Tables\\n%s"];\n' % (
+        rt,
+        "\\n".join(data["routetable"]),
+    ))
+    fh.write("}\n")
+
+
+###############################################################################
 def parseArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument('--elb', default=None, help="Which ELB to examine [all]")
@@ -356,6 +375,35 @@ def parseArgs():
     return args
 
 
+###############################################################################
+def collectLayer1(elb):
+    data = defaultdict(list)
+    mappings = []
+    for l in elb['ListenerDescriptions']:
+        m = "%s:%s" % (l['Listener']['LoadBalancerPort'], l['Listener']['InstancePort'])
+        mappings.append(m)
+
+    data['subnets'] = elb['Subnets']
+    data['securitygroups'] = elb['SecurityGroups']
+    data['mappings'] = mappings
+    data['endpoint'] = elb['LoadBalancerName']
+
+    subnets_csv = ",".join(data['subnets'])
+
+    # Route table
+    routetables = get_routetables("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+    data['routetable_raw'] = routetables
+    data['routetable'] = [x['RouteTableId'] for x in routetables]
+
+    # Network ACL
+    nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+    data['nacl_raw'] = nacl
+    data['nacl'] = [x['NetworkAclId'] for x in nacl]
+
+    return data
+
+
+###############################################################################
 def main():
     args = parseArgs()
     global verbose
@@ -363,7 +411,6 @@ def main():
     fh = args.output
     load_balancers = get_load_balancers()
 
-    layer_1 = defaultdict(list)
     layer_2 = defaultdict(list)
 
     ONLY_SHOW_ELBS = False
@@ -374,7 +421,6 @@ def main():
         ONLY_SHOW_THIS_ELB = args.elb
 
     for elb in load_balancers:
-
         elbname = elb['LoadBalancerName']
         if ONLY_SHOW_ELBS:
             fh.write("%s\n" % elbname)
@@ -383,33 +429,12 @@ def main():
         if ONLY_SHOW_THIS_ELB and ONLY_SHOW_THIS_ELB != elbname:
             continue
 
+        layer_1 = collectLayer1(elb)
+
         if not elb['Scheme'] == 'internet-facing':
             continue
-        subnets = elb['Subnets']
         instances = [x['InstanceId'] for x in elb['Instances']]
-        securitygroups = elb['SecurityGroups']
-        mappings = []
-        for l in elb['ListenerDescriptions']:
-            m = "%s:%s" % (l['Listener']['LoadBalancerPort'], l['Listener']['InstancePort'])
-            mappings.append(m)
 
-        elbname = elb['LoadBalancerName']
-
-        layer_1['subnets'] = subnets
-        layer_1['securitygroups'] = securitygroups
-        layer_1['mappings'] = mappings
-        layer_1['endpoint'] = elbname
-        subnets_csv = ",".join(subnets)
-
-        # Route table
-        routetables = get_routetables("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_1['routetable_raw'] = routetables
-        layer_1['routetable'] = [x['RouteTableId'] for x in routetables]
-
-        # Network ACL
-        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_1['nacl_raw'] = nacl
-        layer_1['nacl'] = [x['NetworkAclId'] for x in nacl]
         # Instances
         layer_2['instances'] = instances
 
@@ -498,29 +523,7 @@ def main():
     fh.write('label = "Public Subnet\\n%s"\n' % "\\n".join(layer_1["subnets"]))
     fh.write("}\n")
 
-    fh.write("subgraph cluster_2 {\n")
-    fh.write('"l1_%s_out" -> "%s";\n' % (
-        "_".join(layer_1["nacl"]),
-        "_".join(layer_1["routetable"]),
-    ))
-    fh.write('"%s" -> "%s_rules";\n' % (
-        "_".join(layer_1["routetable"]),
-        "_".join(layer_1["routetable"])
-    ))
-    fh.write('{rank=same; "%s" "%s_rules"};\n' % (
-        "_".join(layer_1["routetable"]),
-        "_".join(layer_1["routetable"])
-    ))
-
-    fh.write('label = "Routers"\n')
-
-    fh.write('"%s" [label="Route Tables\\n%s"];\n' % (
-        "_".join(layer_1["routetable"]),
-        "\\n".join(layer_1["routetable"]),
-    ))
-
-    fh.write("}\n")
-
+    generateRouters('2', layer_1, fh=fh)
     fh.write("subgraph cluster_3 {\n")
 
     fh.write('"%s" -> "l2_%s_in";\n' % (

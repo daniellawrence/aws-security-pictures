@@ -404,6 +404,38 @@ def collectLayer1(elb):
 
 
 ###############################################################################
+def collectLayer2(elb):
+    data = defaultdict(list)
+    # Instances
+    instances = [x['InstanceId'] for x in elb['Instances']]
+    data['instances'] = instances
+
+    instance_filter = "--instance-ids %s" % " ".join(data['instances'])
+    instances = get_ec2_instances(instance_filter)
+
+    for i in instances:
+        i = i['Instances'][0]
+        securitygroups = [x['GroupId'] for x in i['SecurityGroups']]
+        subnets = [i['SubnetId']]
+
+        data['subnets'] += subnets
+        data['securitygroups'] += securitygroups
+        data['instances'].append(i['InstanceId'])
+        data['instances_raw'] += instances
+
+        # Network ACL
+        subnets_csv = ",".join(subnets)
+        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+        data['nacl_raw'] += nacl
+        data['nacl'] += [x['NetworkAclId'] for x in nacl]
+
+    data['securitygroups'] = list(set(data['securitygroups']))
+    data['instances'] = list(set(data['instances']))
+
+    return data
+
+
+###############################################################################
 def main():
     args = parseArgs()
     global verbose
@@ -411,13 +443,10 @@ def main():
     fh = args.output
     load_balancers = get_load_balancers()
 
-    layer_2 = defaultdict(list)
-
-    ONLY_SHOW_ELBS = False
-
     if args.elb is None:
         ONLY_SHOW_ELBS = True
     else:
+        ONLY_SHOW_ELBS = False
         ONLY_SHOW_THIS_ELB = args.elb
 
     for elb in load_balancers:
@@ -429,40 +458,13 @@ def main():
         if ONLY_SHOW_THIS_ELB and ONLY_SHOW_THIS_ELB != elbname:
             continue
 
-        layer_1 = collectLayer1(elb)
-
         if not elb['Scheme'] == 'internet-facing':
             continue
-        instances = [x['InstanceId'] for x in elb['Instances']]
-
-        # Instances
-        layer_2['instances'] = instances
+        layer_1 = collectLayer1(elb)
+        layer_2 = collectLayer2(elb)
 
     if ONLY_SHOW_ELBS:
         sys.exit(0)
-
-    instance_filter = "--instance-ids %s" % " ".join(layer_2['instances'])
-    instances = get_ec2_instances(instance_filter)
-
-    for i in instances:
-        i = i['Instances'][0]
-        securitygroups = [x['GroupId'] for x in i['SecurityGroups']]
-        subnets = [i['SubnetId']]
-
-        layer_2['subnets'] += subnets
-        layer_2['securitygroups'] += securitygroups
-        layer_2['instances'].append(i['InstanceId'])
-        layer_2['instances_raw'] += instances
-
-        # Network ACL
-        subnets_csv = ",".join(subnets)
-        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_2['nacl_raw'] += nacl
-        layer_2['nacl'] += [x['NetworkAclId'] for x in nacl]
-
-    layer_2['securitygroups'] = list(set(layer_2['securitygroups']))
-    layer_2['instances'] = list(set(layer_2['instances']))
-
     rule_map = [
         "%s_in" % "_".join(layer_1["nacl"]),
         "%s_in" % "_".join(layer_1["securitygroups"]),

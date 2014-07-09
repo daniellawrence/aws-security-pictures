@@ -347,71 +347,136 @@ def get_nacl_rules(_id, fh, direction=None):
 
 
 ###############################################################################
-def generatePublicSubnet(subgraph, data, fh):
+def generatePrivateSubnet(subgraph, layer1, layer2, fh):
+    fh.write("subgraph cluster_3 {\n")
+
+    fh.write('"%s" -> "l2_%s_in";\n' % (
+        "_".join(layer1["routetable"]),
+        "_".join(layer2["nacl"]),
+    ))
+
     rule_map = [
-        "%s_in" % "_".join(data["nacl"]),
-        "%s_in" % "_".join(data["securitygroups"]),
-        "%s" % data["endpoint"],
-        "%s_out" % "_".join(data["securitygroups"]),
-        "%s_out" % "_".join(data["nacl"]),
+        '%s_in' % '_'.join(layer2['nacl']),
+        '%s_in' % '_'.join(layer2['securitygroups']),
+        #'%s' % layer2['instances'],
+        '%s_out' % '_'.join(layer2['securitygroups']),
+        '%s_out' % '_'.join(layer2['nacl']),
+    ]
+
+    fh.write('"l2_%s_in" -> "l2_%s_in";\n' % (
+        '_'.join(layer2['nacl']),
+        '_'.join(layer2['securitygroups'])
+    ))
+    fh.write('"l2_%s_in" -> "l2_%s";\n' % (
+        '_'.join(layer2['securitygroups']),
+        " ".join(layer2['instances'])
+    ))
+    fh.write('"l2_%s" [label="Instances\\n%s"];\n' % (
+        " ".join(layer2['instances']),
+        "\\n".join(layer2['instances'])
+    ))
+
+    fh.write('"l2_%s" -> "l2_%s_out";\n' % (
+        " ".join(layer2['instances']),
+        '_'.join(layer2['securitygroups']),
+    ))
+    fh.write('"l2_%s_out" -> "l2_%s_out";\n' % (
+        '_'.join(layer2['securitygroups']),
+        '_'.join(layer2['nacl']),
+    ))
+
+    for item in rule_map:
+        fh.write('"l2_%s" -> "%s_rules";\n' % (item, item))
+        fh.write('{rank=same; "l2_%s" "%s_rules"};\n' % (item, item))
+
+    fh.write('label = "Private Subnet\\n%s"\n' % "\\n".join(layer2["subnets"]))
+
+    fh.write('"l2_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
+        "_".join(layer2["nacl"]),
+        " ".join(layer2["nacl"])
+    ))
+    fh.write('"l2_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
+        "_".join(layer2["nacl"]),
+        " ".join(layer2["nacl"])
+    ))
+    fh.write('"l2_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
+        "_".join(layer2["securitygroups"]),
+        "\\n".join(layer2["securitygroups"]),
+    ))
+    fh.write('"l2_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
+        "_".join(layer2["securitygroups"]),
+        "\\n".join(layer2["securitygroups"]),
+    ))
+
+    fh.write("}\n")
+
+
+###############################################################################
+def generatePublicSubnet(subgraph, layer1, layer2, fh):
+    rule_map = [
+        "%s_in" % "_".join(layer1["nacl"]),
+        "%s_in" % "_".join(layer1["securitygroups"]),
+        "%s" % layer1["endpoint"],
+        "%s_out" % "_".join(layer1["securitygroups"]),
+        "%s_out" % "_".join(layer1["nacl"]),
     ]
     fh.write("subgraph cluster_%s {\n" % subgraph)
-    fh.write('"l1_%s_in" -> "l1_%s_in";\n' % ("_".join(data["nacl"]),
-                                     "_".join(data["securitygroups"])))
+    fh.write('"l1_%s_in" -> "l1_%s_in";\n' % ("_".join(layer1["nacl"]),
+                                     "_".join(layer1["securitygroups"])))
 
     fh.write('"l1_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
-        "_".join(data["nacl"]),
-        " ".join(data["nacl"])
+        "_".join(layer1["nacl"]),
+        " ".join(layer1["nacl"])
     ))
     fh.write('"l1_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
-        "_".join(data["nacl"]),
-        " ".join(data["nacl"])
+        "_".join(layer1["nacl"]),
+        " ".join(layer1["nacl"])
     ))
     fh.write('"l1_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
-        "_".join(data["securitygroups"]),
-        "\\n".join(data["securitygroups"]),
+        "_".join(layer1["securitygroups"]),
+        "\\n".join(layer1["securitygroups"]),
     ))
     fh.write('"l1_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
-        "_".join(data["securitygroups"]),
-        "\\n".join(data["securitygroups"]),
+        "_".join(layer1["securitygroups"]),
+        "\\n".join(layer1["securitygroups"]),
     ))
 
     fh.write('"l1_%s_in" -> "l1_%s";\n' % (
-        "_".join(data["securitygroups"]),
-        data["endpoint"]
+        "_".join(layer1["securitygroups"]),
+        layer1["endpoint"]
     ))
     fh.write('"l1_%s" -> "l1_%s_out";\n' % (
-        data["endpoint"],
-        "_".join(data["securitygroups"])
+        layer1["endpoint"],
+        "_".join(layer1["securitygroups"])
     ))
 
     fh.write('"l1_%s_out" -> "l1_%s_out";\n' % (
-        "_".join(data["securitygroups"]),
-        "_".join(data["nacl"])
+        "_".join(layer1["securitygroups"]),
+        "_".join(layer1["nacl"])
     ))
 
-    get_sg_rules(data["securitygroups"], fh=fh)
+    get_sg_rules(layer1["securitygroups"], fh=fh)
 
     fh.write('"l1_%s" [label="%s"];\n' % (
-        data["endpoint"],
-        data["endpoint"]
+        layer1["endpoint"],
+        layer1["endpoint"]
     ))
 
     for item in rule_map:
         fh.write('"l1_%s" -> "%s_rules";\n' % (item, item))
         fh.write('{rank=same; "l1_%s" "%s_rules"};\n' % (item, item))
 
-    fh.write('label = "Public Subnet\\n%s"\n' % "\\n".join(data["subnets"]))
+    fh.write('label = "Public Subnet\\n%s"\n' % "\\n".join(layer1["subnets"]))
     fh.write("}\n")
 
 
 ###############################################################################
-def generateRouters(subgraph, data, fh):
-    rt = "_".join(data["routetable"])
+def generateRouters(subgraph, layer1, layer2, fh):
+    rt = "_".join(layer1["routetable"])
 
     fh.write("subgraph cluster_%s {\n" % subgraph)
     fh.write('"l1_%s_out" -> "%s";\n' % (
-        "_".join(data["nacl"]),
+        "_".join(layer1["nacl"]),
         rt,
     ))
     fh.write('"%s" -> "%s_rules";\n' % (rt, rt))
@@ -419,7 +484,7 @@ def generateRouters(subgraph, data, fh):
     fh.write('label = "Routers"\n')
     fh.write('"%s" [label="Route Tables\\n%s"];\n' % (
         rt,
-        "\\n".join(data["routetable"]),
+        "\\n".join(layer1["routetable"]),
     ))
     fh.write("}\n")
 
@@ -538,70 +603,10 @@ def main():
 
     generateHeader(fh)
 
-    generatePublicSubnet('1', layer_1, fh=fh)
-    generateRouters('2', layer_1, fh=fh)
+    generatePublicSubnet('1', layer_1, layer_2, fh=fh)
+    generateRouters('2', layer_1, layer_2, fh=fh)
+    generatePrivateSubnet('3', layer_1, layer_2, fh=fh)
 
-    fh.write("subgraph cluster_3 {\n")
-
-    fh.write('"%s" -> "l2_%s_in";\n' % (
-        "_".join(layer_1["routetable"]),
-        "_".join(layer_2["nacl"]),
-    ))
-
-    rule_map = [
-        '%s_in' % '_'.join(layer_2['nacl']),
-        '%s_in' % '_'.join(layer_2['securitygroups']),
-        #'%s' % layer_2['instances'],
-        '%s_out' % '_'.join(layer_2['securitygroups']),
-        '%s_out' % '_'.join(layer_2['nacl']),
-    ]
-
-    fh.write('"l2_%s_in" -> "l2_%s_in";\n' % (
-        '_'.join(layer_2['nacl']),
-        '_'.join(layer_2['securitygroups'])
-    ))
-    fh.write('"l2_%s_in" -> "l2_%s";\n' % (
-        '_'.join(layer_2['securitygroups']),
-        " ".join(layer_2['instances'])
-    ))
-    fh.write('"l2_%s" [label="Instances\\n%s"];\n' % (
-        " ".join(layer_2['instances']),
-        "\\n".join(layer_2['instances'])
-    ))
-
-    fh.write('"l2_%s" -> "l2_%s_out";\n' % (
-        " ".join(layer_2['instances']),
-        '_'.join(layer_2['securitygroups']),
-    ))
-    fh.write('"l2_%s_out" -> "l2_%s_out";\n' % (
-        '_'.join(layer_2['securitygroups']),
-        '_'.join(layer_2['nacl']),
-    ))
-
-    for item in rule_map:
-        fh.write('"l2_%s" -> "%s_rules";\n' % (item, item))
-        fh.write('{rank=same; "l2_%s" "%s_rules"};\n' % (item, item))
-
-    fh.write('label = "Private Subnet\\n%s"\n' % "\\n".join(layer_2["subnets"]))
-
-    fh.write('"l2_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
-        "_".join(layer_2["nacl"]),
-        " ".join(layer_2["nacl"])
-    ))
-    fh.write('"l2_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
-        "_".join(layer_2["nacl"]),
-        " ".join(layer_2["nacl"])
-    ))
-    fh.write('"l2_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
-        "_".join(layer_2["securitygroups"]),
-        "\\n".join(layer_2["securitygroups"]),
-    ))
-    fh.write('"l2_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
-        "_".join(layer_2["securitygroups"]),
-        "\\n".join(layer_2["securitygroups"]),
-    ))
-
-    fh.write("}\n")
 
     get_sg_rules(layer_2["securitygroups"], fh=fh)
 

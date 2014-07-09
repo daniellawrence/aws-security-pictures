@@ -622,35 +622,31 @@ def generateFooter(fh):
 
 
 ###############################################################################
+def displayElbList(fh):
+    for elb in get_load_balancers():
+        elbname = elb['LoadBalancerName']
+        fh.write("%s\n" % elbname)
+
+
+###############################################################################
 def main():
     args = parseArgs()
     global verbose
     verbose = args.verbose
     fh = args.output
-    load_balancers = get_load_balancers()
 
     if args.elb is None:
-        ONLY_SHOW_ELBS = True
-    else:
-        ONLY_SHOW_ELBS = False
-        ONLY_SHOW_THIS_ELB = args.elb
+        displayElbList(fh)
+        return
 
-    for elb in load_balancers:
+    for elb in get_load_balancers():
         elbname = elb['LoadBalancerName']
-        if ONLY_SHOW_ELBS:
-            fh.write("%s\n" % elbname)
+        if args.elb != elbname:
             continue
-
-        if ONLY_SHOW_THIS_ELB and ONLY_SHOW_THIS_ELB != elbname:
-            continue
-
         if not elb['Scheme'] == 'internet-facing':
             continue
         layer_1 = collectLayer1(elb)
         layer_2 = collectLayer2(elb)
-
-    if ONLY_SHOW_ELBS:
-        sys.exit(0)
 
     generateHeader(fh)
     generatePublicSubnet('1', layer_1, layer_2, fh=fh)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # The MIT License (MIT)
-# 
+#
 # Copyright (c) 2014 Daniel Lawrence <dannyla@linux.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,24 +24,30 @@
 import os
 import json
 import sys
+import argparse
 #from pprint import pprint
 from collections import defaultdict
 
-os.popen('mkdir -p /tmp/aws-cache').read()
+aws_flags = ['--no-verify-ssl']
 
 
 def aws_command(cmd):
-    safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ','_')
-    print "// %s" % cmd,
+    os.popen('mkdir -p /tmp/aws-cache').read()
+    safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ', '_')
+    if verbose:
+        sys.stderr.write("%s" % cmd)
 
     if os.path.exists(safe_cmd):
-        print " HIT"
+        if verbose:
+            sys.stderr.write(" HIT\n")
         with open(safe_cmd, 'r') as jsonfile:
             raw_json = json.load(jsonfile)
             return raw_json
-    print " MISS"
+    if verbose:
+        sys.stderr.write(" MISS\n")
 
-    raw = os.popen(cmd).read()
+    aws_cmd = "aws %s %s" % (" ".join(aws_flags), cmd)
+    raw = os.popen(aws_cmd).read()
     raw_json = json.loads(raw)
 
     with open(safe_cmd, 'w') as outfile:
@@ -51,25 +57,25 @@ def aws_command(cmd):
 
 
 def get_rds(lookup_filter=''):
-    lookup_cmd = "aws rds describe-db-instances %s" % lookup_filter
+    lookup_cmd = "rds describe-db-instances %s" % lookup_filter
     rds = aws_command(lookup_cmd)
     return rds['DBInstances']
 
 
 def get_subnets(lookup_filter=''):
-    lookup_cmd = "aws ec2 describe-subnets %s" % lookup_filter
+    lookup_cmd = "ec2 describe-subnets %s" % lookup_filter
     subnets = aws_command(lookup_cmd)
     return subnets['Subnets']
 
 
 def get_load_balancers(lookup_filter=''):
-    lookup_cmd = "aws elb describe-load-balancers %s" % lookup_filter
+    lookup_cmd = "elb describe-load-balancers %s" % lookup_filter
     load_balancers = aws_command(lookup_cmd)
     return load_balancers['LoadBalancerDescriptions']
 
 
 def get_ec2_instances(lookup_filter=''):
-    lookup_cmd = "aws ec2 describe-instances %s" % lookup_filter
+    lookup_cmd = "ec2 describe-instances %s" % lookup_filter
     ec2_instances = aws_command(lookup_cmd)
     return ec2_instances['Reservations']
 
@@ -82,13 +88,13 @@ def get_security_groups(lookup_filter=''):
             r += s
         return r
 
-    lookup_cmd = "aws ec2 describe-security-groups %s" % lookup_filter
+    lookup_cmd = "ec2 describe-security-groups %s" % lookup_filter
     security_groups = aws_command(lookup_cmd)
     return security_groups['SecurityGroups']
 
 
 def get_routetables(lookup_filter=''):
-    lookup_cmd = "aws ec2 describe-route-tables %s" % lookup_filter
+    lookup_cmd = "ec2 describe-route-tables %s" % lookup_filter
     rtb = aws_command(lookup_cmd)
     return rtb['RouteTables']
 
@@ -100,12 +106,12 @@ def get_network_acl(lookup_filter=''):
             s = get_network_acl("--network-acl-ids %s" % l)
             r += s
         return r
-    lookup_cmd = "aws ec2 describe-network-acls %s" % lookup_filter
+    lookup_cmd = "ec2 describe-network-acls %s" % lookup_filter
     nacl = aws_command(lookup_cmd)
     return nacl['NetworkAcls']
 
 
-def get_elb_rules(_id):
+def get_elb_rules(_id, fh):
     elb = get_load_balancers("--load-balancer-names %s" % _id)[0]
     elb_node = """
     "%s_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
@@ -132,10 +138,10 @@ def get_elb_rules(_id):
         elb_node += rule_html
 
     elb_node += "</table>>];"
-    print elb_node
+    fh.write(elb_node)
 
 
-def get_rtb_rules(_id):
+def get_rtb_rules(_id, fh):
     rtb = get_routetables("--route-table-ids %s" % _id[0])[0]
 
     rtb_node = """
@@ -143,7 +149,7 @@ def get_rtb_rules(_id):
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
     <!--
     <tr>
-       <td bgcolor="black" align="center" colspan="2"><font color="white">%s_rules</font></td> 
+       <td bgcolor="black" align="center" colspan="2"><font color="white">%s_rules</font></td>
     </tr>
     -->
   <tr>
@@ -162,10 +168,10 @@ def get_rtb_rules(_id):
         rtb_node += rule_html
 
     rtb_node += "</table>>];"
-    print rtb_node
+    fh.write(rtb_node)
 
 
-def get_sg_rules(_id, direction=None, combine=True):
+def get_sg_rules(_id, fh, direction=None, combine=True):
 
     mutiple_sg = False
     sg_field_tr = ''
@@ -181,7 +187,7 @@ def get_sg_rules(_id, direction=None, combine=True):
     "%s_in_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
         <tr>
-          <td bgcolor="black" align="center"><font color="white">CIDR</font></td> 
+          <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
           <td bgcolor="black" align="center"><font color="white">Ports</font></td>
           %s
         </tr>
@@ -206,7 +212,7 @@ def get_sg_rules(_id, direction=None, combine=True):
                     i['FromPort'], i['ToPort'], i['IpProtocol'].upper()
                 )
             ips = [x['CidrIp'] for x in i['IpRanges']]
-            #print " //", i
+            #fh.write(" //\n", i)
             if not ips:
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
             ips = "<Br />".join(ips)
@@ -249,15 +255,15 @@ def get_sg_rules(_id, direction=None, combine=True):
     egress_node += "</table>>];"
 
     if direction == "ingress":
-        print ingress_node
+        fh.write(ingress_node)
     elif direction == "egress":
-        print egress_node
+        fh.write(egress_node)
     else:
-        print ingress_node
-        print egress_node
+        fh.write(ingress_node)
+        fh.write(egress_node)
 
 
-def get_nacl_rules(_id, direction=None):
+def get_nacl_rules(_id, fh, direction=None):
     if isinstance(_id, list):
         acl_list = get_network_acl(_id)
     else:
@@ -302,7 +308,7 @@ def get_nacl_rules(_id, direction=None):
             portrange = "TCP/UDP/ICMP"
             if "PortRange" in e:
                 protocol = P_MAP[e['Protocol']]
-                portrange = "%d-%d/%s" %(
+                portrange = "%d-%d/%s" % (
                     e['PortRange']['From'], e['PortRange']['To'], protocol
                 )
             rule = "%s %s %s %s" % (
@@ -330,255 +336,238 @@ def get_nacl_rules(_id, direction=None):
         ingress_node += "</table>>];"
 
         if direction == "ingress":
-            print ingress_node
+            fh.write(ingress_node)
         elif direction == "egress":
-            print egress_node
+            fh.write(egress_node)
         else:
-            print ingress_node
-            print egress_node
+            fh.write(ingress_node)
+            fh.write(egress_node)
 
     return ingress_node, egress_node
 
 
-def main():
-    load_balancers = get_load_balancers()
+###############################################################################
+def generatePrivateSubnet(subgraph, layer1, layer2, fh):
+    fh.write("subgraph cluster_3 {\n")
 
-    layer_1 = defaultdict(list)
-    layer_2 = defaultdict(list)
+    fh.write('"%s" -> "l2_%s_in";\n' % (
+        "_".join(layer1["routetable"]),
+        "_".join(layer2["nacl"]),
+    ))
 
-    ONLY_SHOW_ELBS = False
+    rule_map = [
+        '%s_in' % '_'.join(layer2['nacl']),
+        '%s_in' % '_'.join(layer2['securitygroups']),
+        #'%s' % layer2['instances'],
+        '%s_out' % '_'.join(layer2['securitygroups']),
+        '%s_out' % '_'.join(layer2['nacl']),
+    ]
 
-    if len(sys.argv) == 1:
-        ONLY_SHOW_ELBS = True
-    else:
-        ONLY_SHOW_THIS_ELB = sys.argv[1]
+    fh.write('"l2_%s_in" -> "l2_%s_in";\n' % (
+        '_'.join(layer2['nacl']),
+        '_'.join(layer2['securitygroups'])
+    ))
+    fh.write('"l2_%s_in" -> "l2_%s";\n' % (
+        '_'.join(layer2['securitygroups']),
+        " ".join(layer2['instances'])
+    ))
+    fh.write('"l2_%s" [label="Instances\\n%s"];\n' % (
+        " ".join(layer2['instances']),
+        "\\n".join(layer2['instances'])
+    ))
 
-    for elb in load_balancers:
+    fh.write('"l2_%s" -> "l2_%s_out";\n' % (
+        " ".join(layer2['instances']),
+        '_'.join(layer2['securitygroups']),
+    ))
+    fh.write('"l2_%s_out" -> "l2_%s_out";\n' % (
+        '_'.join(layer2['securitygroups']),
+        '_'.join(layer2['nacl']),
+    ))
 
-        elbname = elb['LoadBalancerName']
-        if ONLY_SHOW_ELBS:
-            print elbname
-            continue
+    for item in rule_map:
+        fh.write('"l2_%s" -> "%s_rules";\n' % (item, item))
+        fh.write('{rank=same; "l2_%s" "%s_rules"};\n' % (item, item))
 
-        if ONLY_SHOW_THIS_ELB and ONLY_SHOW_THIS_ELB != elbname:
-            continue
+    fh.write('label = "Private Subnet\\n%s"\n' % "\\n".join(layer2["subnets"]))
 
-        if not elb['Scheme'] == 'internet-facing':
-            continue
-        subnets = elb['Subnets']
-        instances = [x['InstanceId'] for x in elb['Instances']]
-        securitygroups = elb['SecurityGroups']
-        mappings = []
-        for l in elb['ListenerDescriptions']:
-            m = "%s:%s" % (l['Listener']['LoadBalancerPort'], l['Listener']['InstancePort'])
-            mappings.append(m)
+    fh.write('"l2_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
+        "_".join(layer2["nacl"]),
+        " ".join(layer2["nacl"])
+    ))
+    fh.write('"l2_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
+        "_".join(layer2["nacl"]),
+        " ".join(layer2["nacl"])
+    ))
+    fh.write('"l2_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
+        "_".join(layer2["securitygroups"]),
+        "\\n".join(layer2["securitygroups"]),
+    ))
+    fh.write('"l2_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
+        "_".join(layer2["securitygroups"]),
+        "\\n".join(layer2["securitygroups"]),
+    ))
 
-        elbname = elb['LoadBalancerName']
+    fh.write("}\n")
 
-        layer_1['subnets'] = subnets
-        layer_1['securitygroups'] = securitygroups
-        layer_1['mappings'] = mappings
-        layer_1['endpoint'] = elbname
-        subnets_csv = ",".join(subnets)
 
-        # Route table
-        routetables = get_routetables("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_1['routetable_raw'] = routetables
-        layer_1['routetable'] = [x['RouteTableId'] for x in routetables]
+###############################################################################
+def generatePublicSubnet(subgraph, layer1, layer2, fh):
+    rule_map = [
+        "%s_in" % "_".join(layer1["nacl"]),
+        "%s_in" % "_".join(layer1["securitygroups"]),
+        "%s" % layer1["endpoint"],
+        "%s_out" % "_".join(layer1["securitygroups"]),
+        "%s_out" % "_".join(layer1["nacl"]),
+    ]
+    fh.write("subgraph cluster_%s {\n" % subgraph)
+    fh.write('"l1_%s_in" -> "l1_%s_in";\n' % ("_".join(layer1["nacl"]),
+                                     "_".join(layer1["securitygroups"])))
 
-        # Network ACL
-        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_1['nacl_raw'] = nacl
-        layer_1['nacl'] = [x['NetworkAclId'] for x in nacl]
-        # Instances
-        layer_2['instances'] = instances
+    fh.write('"l1_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
+        "_".join(layer1["nacl"]),
+        " ".join(layer1["nacl"])
+    ))
+    fh.write('"l1_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
+        "_".join(layer1["nacl"]),
+        " ".join(layer1["nacl"])
+    ))
+    fh.write('"l1_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
+        "_".join(layer1["securitygroups"]),
+        "\\n".join(layer1["securitygroups"]),
+    ))
+    fh.write('"l1_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
+        "_".join(layer1["securitygroups"]),
+        "\\n".join(layer1["securitygroups"]),
+    ))
 
-    if ONLY_SHOW_ELBS:
-        sys.exit(0)
+    fh.write('"l1_%s_in" -> "l1_%s";\n' % (
+        "_".join(layer1["securitygroups"]),
+        layer1["endpoint"]
+    ))
+    fh.write('"l1_%s" -> "l1_%s_out";\n' % (
+        layer1["endpoint"],
+        "_".join(layer1["securitygroups"])
+    ))
 
-    instance_filter = "--instance-ids %s" % " ".join(layer_2['instances'])
+    fh.write('"l1_%s_out" -> "l1_%s_out";\n' % (
+        "_".join(layer1["securitygroups"]),
+        "_".join(layer1["nacl"])
+    ))
+
+    get_sg_rules(layer1["securitygroups"], fh=fh)
+
+    fh.write('"l1_%s" [label="%s"];\n' % (
+        layer1["endpoint"],
+        layer1["endpoint"]
+    ))
+
+    for item in rule_map:
+        fh.write('"l1_%s" -> "%s_rules";\n' % (item, item))
+        fh.write('{rank=same; "l1_%s" "%s_rules"};\n' % (item, item))
+
+    fh.write('label = "Public Subnet\\n%s"\n' % "\\n".join(layer1["subnets"]))
+    fh.write("}\n")
+
+
+###############################################################################
+def generateRouters(subgraph, layer1, layer2, fh):
+    rt = "_".join(layer1["routetable"])
+
+    fh.write("subgraph cluster_%s {\n" % subgraph)
+    fh.write('"l1_%s_out" -> "%s";\n' % (
+        "_".join(layer1["nacl"]),
+        rt,
+    ))
+    fh.write('"%s" -> "%s_rules";\n' % (rt, rt))
+    fh.write('{rank=same; "%s" "%s_rules"};\n' % (rt, rt))
+    fh.write('label = "Routers"\n')
+    fh.write('"%s" [label="Route Tables\\n%s"];\n' % (
+        rt,
+        "\\n".join(layer1["routetable"]),
+    ))
+    fh.write("}\n")
+
+
+###############################################################################
+def parseArgs():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--elb', default=None, help="Which ELB to examine [all]")
+    parser.add_argument('--output', default=sys.stdout, type=argparse.FileType('w'), help="Which file to output to [stdout]")
+    parser.add_argument('-v', '--verbose', default=False, action='store_true', help="Print some details")
+    args = parser.parse_args()
+    return args
+
+
+###############################################################################
+def collectLayer1(elb):
+    data = defaultdict(list)
+    mappings = []
+    for l in elb['ListenerDescriptions']:
+        m = "%s:%s" % (l['Listener']['LoadBalancerPort'], l['Listener']['InstancePort'])
+        mappings.append(m)
+
+    data['subnets'] = elb['Subnets']
+    data['securitygroups'] = elb['SecurityGroups']
+    data['mappings'] = mappings
+    data['endpoint'] = elb['LoadBalancerName']
+
+    subnets_csv = ",".join(data['subnets'])
+
+    # Route table
+    routetables = get_routetables("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+    data['routetable_raw'] = routetables
+    data['routetable'] = [x['RouteTableId'] for x in routetables]
+
+    # Network ACL
+    nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+    data['nacl_raw'] = nacl
+    data['nacl'] = [x['NetworkAclId'] for x in nacl]
+
+    return data
+
+
+###############################################################################
+def collectLayer2(elb):
+    data = defaultdict(list)
+    # Instances
+    instances = [x['InstanceId'] for x in elb['Instances']]
+    data['instances'] = instances
+
+    instance_filter = "--instance-ids %s" % " ".join(instances)
     instances = get_ec2_instances(instance_filter)
+    data['instances_raw'] = instances
 
     for i in instances:
         i = i['Instances'][0]
         securitygroups = [x['GroupId'] for x in i['SecurityGroups']]
         subnets = [i['SubnetId']]
 
-        layer_2['subnets'] += subnets
-        layer_2['securitygroups'] += securitygroups
-        layer_2['instances'].append(i['InstanceId'])
-        layer_2['instances_raw'] += instances
+        data['subnets'] += subnets
+        data['securitygroups'] += securitygroups
+        data['instances'].append(i['InstanceId'])
 
         # Network ACL
         subnets_csv = ",".join(subnets)
         nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-        layer_2['nacl_raw'] += nacl
-        layer_2['nacl'] += [x['NetworkAclId'] for x in nacl]
+        data['nacl_raw'] += nacl
+        data['nacl'] += [x['NetworkAclId'] for x in nacl]
 
-    layer_2['securitygroups'] = list(set(layer_2['securitygroups']))
-    layer_2['instances'] = list(set(layer_2['instances']))
+    data['securitygroups'] = list(set(data['securitygroups']))
+    data['instances'] = list(set(data['instances']))
 
-    rule_map = [
-        "%s_in" % "_".join(layer_1["nacl"]),
-        "%s_in" % "_".join(layer_1["securitygroups"]),
-        "%s" % layer_1["endpoint"],
-        "%s_out" % "_".join(layer_1["securitygroups"]),
-        "%s_out" % "_".join(layer_1["nacl"]),
-    ]
-
-    print "digraph g {"
-    print 'node [margin=0 width=0.5 shape="plaintext"]'
-
-    print "subgraph cluster_1 {"
-    print '"l1_%s_in" -> "l1_%s_in";' % ("_".join(layer_1["nacl"]),
-                                     "_".join(layer_1["securitygroups"]))
-
-    print '"l1_%s_in" [label="Network ACL (inbound)\\n%s"];' % (
-        "_".join(layer_1["nacl"]),
-        " ".join(layer_1["nacl"])
-    )
-    print '"l1_%s_out" [label="Network ACL (outbound)\\n%s"];' % (
-        "_".join(layer_1["nacl"]),
-        " ".join(layer_1["nacl"])
-    )
-    print '"l1_%s_in" [label="Security Group (inbound)\\n%s"];' % (
-        "_".join(layer_1["securitygroups"]),
-        "\\n".join(layer_1["securitygroups"]),
-    )
-    print '"l1_%s_out" [label="Security Group (outbound)\\n%s"];' % (
-        "_".join(layer_1["securitygroups"]),
-        "\\n".join(layer_1["securitygroups"]),
-    )
-
-    print '"l1_%s_in" -> "l1_%s";' % (
-        "_".join(layer_1["securitygroups"]),
-        layer_1["endpoint"]
-    )
-    print '"l1_%s" -> "l1_%s_out";' % (
-        layer_1["endpoint"],
-        "_".join(layer_1["securitygroups"])
-    )
-
-    print '"l1_%s_out" -> "l1_%s_out";' % (
-        "_".join(layer_1["securitygroups"]),
-        "_".join(layer_1["nacl"])
-    )
-
-    get_sg_rules(layer_1["securitygroups"])
-
-    print '"l1_%s" [label="%s"];' % (
-        layer_1["endpoint"],
-        layer_1["endpoint"]
-    )
-
-    for item in rule_map:
-        print '"l1_%s" -> "%s_rules";' % (item, item)
-        print '{rank=same; "l1_%s" "%s_rules"};' % (item, item)
-
-    print 'label = "Public Subnet\\n%s"' % "\\n".join(layer_1["subnets"])
-    print "}"
-
-    print "subgraph cluster_2 {"
-    print '"l1_%s_out" -> "%s";' % (
-        "_".join(layer_1["nacl"]),
-        "_".join(layer_1["routetable"]),
-    )
-    print '"%s" -> "%s_rules";' % (
-        "_".join(layer_1["routetable"]),
-        "_".join(layer_1["routetable"])
-    )
-    print '{rank=same; "%s" "%s_rules"};' % (
-        "_".join(layer_1["routetable"]),
-        "_".join(layer_1["routetable"])
-    )
-
-    print 'label = "Routers"'
-
-    print '"%s" [label="Route Tables\\n%s"];' % (
-        "_".join(layer_1["routetable"]),
-        "\\n".join(layer_1["routetable"]),
-    )
-
-    print "}"
-
-    print "subgraph cluster_3 {"
-
-    print '"%s" -> "l2_%s_in";' % (
-        "_".join(layer_1["routetable"]),
-        "_".join(layer_2["nacl"]),
-    )
+    return data
 
 
-    rule_map = [
-        '%s_in' % '_'.join(layer_2['nacl']),
-        '%s_in' % '_'.join(layer_2['securitygroups']),
-        #'%s' % layer_2['instances'],
-        '%s_out' % '_'.join(layer_2['securitygroups']),
-        '%s_out' % '_'.join(layer_2['nacl']),
-    ]
-
-    print '"l2_%s_in" -> "l2_%s_in";' % (
-        '_'.join(layer_2['nacl']),
-        '_'.join(layer_2['securitygroups'])
-    )
-    print '"l2_%s_in" -> "l2_%s";' % (
-        '_'.join(layer_2['securitygroups']),
-        " ".join(layer_2['instances'])
-    )
-    print '"l2_%s" [label="Instances\\n%s"];' % (
-        " ".join(layer_2['instances']),
-        "\\n".join(layer_2['instances'])
-    )
-
-    print '"l2_%s" -> "l2_%s_out";' % (
-        " ".join(layer_2['instances']),
-        '_'.join(layer_2['securitygroups']),
-    )
-    print '"l2_%s_out" -> "l2_%s_out";' % (
-        '_'.join(layer_2['securitygroups']),
-        '_'.join(layer_2['nacl']),
-    )
-
-    for item in rule_map:
-        print '"l2_%s" -> "%s_rules";' % (item, item)
-        print '{rank=same; "l2_%s" "%s_rules"};' % (item, item)
-
-    print 'label = "Private Subnet\\n%s"' % "\\n".join(layer_2["subnets"])
-
-    print '"l2_%s_in" [label="Network ACL (inbound)\\n%s"];' % (
-        "_".join(layer_2["nacl"]),
-        " ".join(layer_2["nacl"])
-    )
-    print '"l2_%s_out" [label="Network ACL (outbound)\\n%s"];' % (
-        "_".join(layer_2["nacl"]),
-        " ".join(layer_2["nacl"])
-    )
-    print '"l2_%s_in" [label="Security Group (inbound)\\n%s"];' % (
-        "_".join(layer_2["securitygroups"]),
-        "\\n".join(layer_2["securitygroups"]),
-    )
-    print '"l2_%s_out" [label="Security Group (outbound)\\n%s"];' % (
-        "_".join(layer_2["securitygroups"]),
-        "\\n".join(layer_2["securitygroups"]),
-    )
-
-    print "}"
-
-    get_sg_rules(layer_2["securitygroups"])
-
-    get_rtb_rules(layer_1["routetable"])
-    get_nacl_rules(layer_1["nacl"])
-    get_nacl_rules(layer_2["nacl"])
-
-    get_elb_rules(layer_1["endpoint"])
-
-
+###############################################################################
+def generateGroups(layer1, layer2, fh):
+    # Not currently used
     groups_html = """
     "all_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
     <tr>
-       <td bgcolor="black" align="center"><font color="white">section</font></td> 
-       <td bgcolor="black" align="center"><font color="white">items</font></td> 
+       <td bgcolor="black" align="center"><font color="white">section</font></td>
+       <td bgcolor="black" align="center"><font color="white">items</font></td>
     </tr>
   <tr>
       <td>Public Network ACL</td>
@@ -611,16 +600,69 @@ def main():
   </table>
     >];
     """ % (
-        " ".join(layer_1["nacl"]),
-        " ".join(layer_1["securitygroups"]),
-        layer_1["endpoint"],
-        " ".join(layer_1['routetable']),
-        " ".join(layer_2["nacl"]),
-        " ".join(layer_2["securitygroups"]),
-        layer_2["instances"]
+        " ".join(layer1["nacl"]),
+        " ".join(layer1["securitygroups"]),
+        layer1["endpoint"],
+        " ".join(layer1['routetable']),
+        " ".join(layer2["nacl"]),
+        " ".join(layer2["securitygroups"]),
+        layer2["instances"]
     )
 
-    print "}"
 
+###############################################################################
+def generateHeader(fh):
+    fh.write("digraph g {\n")
+    fh.write('node [margin=0 width=0.5 shape="plaintext"]\n')
+
+
+###############################################################################
+def generateFooter(fh):
+    fh.write("}\n")
+
+
+###############################################################################
+def displayElbList(fh):
+    for elb in get_load_balancers():
+        elbname = elb['LoadBalancerName']
+        fh.write("%s\n" % elbname)
+
+
+###############################################################################
+def main():
+    args = parseArgs()
+    global verbose
+    verbose = args.verbose
+    fh = args.output
+
+    if args.elb is None:
+        displayElbList(fh)
+        return
+
+    for elb in get_load_balancers():
+        elbname = elb['LoadBalancerName']
+        if args.elb != elbname:
+            continue
+        if not elb['Scheme'] == 'internet-facing':
+            continue
+        layer_1 = collectLayer1(elb)
+        layer_2 = collectLayer2(elb)
+
+    generateHeader(fh)
+    generatePublicSubnet('1', layer_1, layer_2, fh=fh)
+    generateRouters('2', layer_1, layer_2, fh=fh)
+    generatePrivateSubnet('3', layer_1, layer_2, fh=fh)
+
+    get_sg_rules(layer_2["securitygroups"], fh=fh)
+    get_rtb_rules(layer_1["routetable"], fh=fh)
+    get_nacl_rules(layer_1["nacl"], fh=fh)
+    get_nacl_rules(layer_2["nacl"], fh=fh)
+    get_elb_rules(layer_1["endpoint"], fh=fh)
+    generateFooter(fh)
+
+
+###############################################################################
 if __name__ == '__main__':
     main()
+
+#EOF

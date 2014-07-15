@@ -46,9 +46,15 @@ def echo(message, stderr=True):
 
 def aws_command(cmd):
     os.popen('mkdir -p /tmp/aws-cache').read()
-    safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ', '_')
 
-    echo("%s" % cmd)
+    if profile:
+        aws_flags.extend(['--profile', profile])
+
+    flags = " ".join(aws_flags)
+    aws_cmd = "aws %s %s" % (flags, cmd)
+    echo("%s" % aws_cmd)
+
+    safe_cmd = "/tmp/aws-cache/%s" % aws_cmd.replace(' ', '_')
 
     if os.path.exists(safe_cmd):
         echo(" HIT\n")
@@ -59,10 +65,6 @@ def aws_command(cmd):
 
     echo(" MISS\n")
 
-    if profile:
-        aws_flags.extend(['--profile', profile])
-
-    aws_cmd = "aws %s %s" % (" ".join(aws_flags), cmd)
     raw = os.popen(aws_cmd).read()
     raw_json = json.loads(raw)
 

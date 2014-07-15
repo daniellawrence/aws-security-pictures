@@ -30,21 +30,27 @@ from collections import defaultdict
 
 aws_flags = ['--no-verify-ssl']
 
+def echo(message, stderr=True):
+    if not verbose: return
+
+    stream = sys.stderr if stderr else sys.stdout;
+    stream.write(message)
+
 
 def aws_command(cmd):
     os.popen('mkdir -p /tmp/aws-cache').read()
     safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ', '_')
-    if verbose:
-        sys.stderr.write("%s" % cmd)
+
+    echo("%s" % cmd)
 
     if os.path.exists(safe_cmd):
-        if verbose:
-            sys.stderr.write(" HIT\n")
+        echo(" HIT\n")
+
         with open(safe_cmd, 'r') as jsonfile:
             raw_json = json.load(jsonfile)
             return raw_json
-    if verbose:
-        sys.stderr.write(" MISS\n")
+
+    echo(" MISS\n")
 
     aws_cmd = "aws %s %s" % (" ".join(aws_flags), cmd)
     raw = os.popen(aws_cmd).read()

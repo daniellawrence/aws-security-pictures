@@ -6,6 +6,7 @@ set -e
 
 if [[ ${#} -eq 0 ]];then
     echo "$0 ELBNAME [PROFILE]"
+    awssecuritypictures/generate.py
     exit 1
 fi
 
@@ -16,7 +17,7 @@ if [ ! -z "$PROFILE" ]; then
     PROFILE="--profile $PROFILE"
 fi
 
-./main.py -v --elb ${ELB} $PROFILE > ${ELB}.dot
+awssecuritypictures/generate.py -v --elb ${ELB} $PROFILE > ${ELB}.dot
 dot -T png ${ELB}.dot > ${ELB}.png
 
 if type eog 2>/dev/null; then

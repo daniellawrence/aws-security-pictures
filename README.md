@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/daniellawrence/aws-security-pictures.svg?branch=master)](https://travis-ci.org/daniellawrence/aws-security-pictures)
+
 AWS Security Pictures
 ---------------------
 

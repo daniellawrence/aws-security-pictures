@@ -59,6 +59,9 @@ def aws_command(cmd):
 
     echo(" MISS\n")
 
+    if profile:
+        aws_flags.extend(['--profile', profile])
+
     aws_cmd = "aws %s %s" % (" ".join(aws_flags), cmd)
     raw = os.popen(aws_cmd).read()
     raw_json = json.loads(raw)
@@ -510,9 +513,11 @@ def generateRouters(subgraph, layer1, layer2, fh):
 ###############################################################################
 def parseArgs():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--profile', default=None,
+                        help="AWS CLI profile to be used")
     parser.add_argument('--elb', default=None,
                         help="Which ELB to examine [all]")
-    parser.add_argument('--output', default=sys.stdout,
+    parser.add_argument('-o', '--output', default=sys.stdout,
                         type=argparse.FileType('w'),
                         help="Which file to output to [stdout]")
     parser.add_argument('-v', '--verbose', default=False,
@@ -658,7 +663,9 @@ def displayElbList(fh):
 ###############################################################################
 def main():
     args = parseArgs()
-    global verbose
+    global verbose, profile
+
+    profile = args.profile
     verbose = args.verbose
     fh = args.output
 

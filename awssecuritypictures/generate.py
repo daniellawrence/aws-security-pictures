@@ -29,11 +29,18 @@ import argparse
 from collections import defaultdict
 
 aws_flags = ['--no-verify-ssl']
+verbose = False
+
 
 def echo(message, stderr=True):
-    if not verbose: return
+    global verbose
+    if not verbose:
+        return
 
-    stream = sys.stderr if stderr else sys.stdout;
+    if stderr:
+        stream = sys.stderr
+    else:
+        stream = sys.stdout
     stream.write(message)
 
 
@@ -129,7 +136,9 @@ def get_elb_rules(_id, fh):
     -->
     <tr>
     <td bgcolor="black" align="center"><font color="white">Target</font></td>
-    <td bgcolor="black" align="center"><font color="white">Destination</font></td>
+    <td bgcolor="black" align="center">
+      <font color="white">Destination</font>
+    </td>
     </tr>
     """ % (_id, _id)
     for l in elb['ListenerDescriptions']:
@@ -159,8 +168,10 @@ def get_rtb_rules(_id, fh):
     </tr>
     -->
   <tr>
-      <td bgcolor="black" align="center"><font color="white">source</font></td>
-      <td bgcolor="black" align="center"><font color="white">desitination</font></td>
+    <td bgcolor="black" align="center"><font color="white">source</font></td>
+    <td bgcolor="black" align="center">
+      <font color="white">desitination</font>
+    </td>
   </tr>
     """ % (_id[0], _id[0])
 
@@ -309,7 +320,7 @@ def get_nacl_rules(_id, fh, direction=None):
         P_MAP = {
             '6': 'TCP',
             '17': 'UDP'
-            }
+        }
         for e in acl['Entries']:
             portrange = "TCP/UDP/ICMP"
             if "PortRange" in e:
@@ -427,8 +438,9 @@ def generatePublicSubnet(subgraph, layer1, layer2, fh):
         "%s_out" % "_".join(layer1["nacl"]),
     ]
     fh.write("subgraph cluster_%s {\n" % subgraph)
-    fh.write('"l1_%s_in" -> "l1_%s_in";\n' % ("_".join(layer1["nacl"]),
-                                     "_".join(layer1["securitygroups"])))
+    fh.write('"l1_%s_in" -> "l1_%s_in";\n' % (
+        "_".join(layer1["nacl"]),
+        "_".join(layer1["securitygroups"])))
 
     fh.write('"l1_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
         "_".join(layer1["nacl"]),
@@ -498,9 +510,14 @@ def generateRouters(subgraph, layer1, layer2, fh):
 ###############################################################################
 def parseArgs():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--elb', default=None, help="Which ELB to examine [all]")
-    parser.add_argument('--output', default=sys.stdout, type=argparse.FileType('w'), help="Which file to output to [stdout]")
-    parser.add_argument('-v', '--verbose', default=False, action='store_true', help="Print some details")
+    parser.add_argument('--elb', default=None,
+                        help="Which ELB to examine [all]")
+    parser.add_argument('--output', default=sys.stdout,
+                        type=argparse.FileType('w'),
+                        help="Which file to output to [stdout]")
+    parser.add_argument('-v', '--verbose', default=False,
+                        action='store_true',
+                        help="Print some details")
     args = parser.parse_args()
     return args
 
@@ -510,7 +527,8 @@ def collectLayer1(elb):
     data = defaultdict(list)
     mappings = []
     for l in elb['ListenerDescriptions']:
-        m = "%s:%s" % (l['Listener']['LoadBalancerPort'], l['Listener']['InstancePort'])
+        m = "%s:%s" % (l['Listener']['LoadBalancerPort'],
+                       l['Listener']['InstancePort'])
         mappings.append(m)
 
     data['subnets'] = elb['Subnets']
@@ -572,7 +590,9 @@ def generateGroups(layer1, layer2, fh):
     "all_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
     <tr>
-       <td bgcolor="black" align="center"><font color="white">section</font></td>
+       <td bgcolor="black" align="center">
+         <font color="white">section</font>
+       </td>
        <td bgcolor="black" align="center"><font color="white">items</font></td>
     </tr>
   <tr>
@@ -614,6 +634,7 @@ def generateGroups(layer1, layer2, fh):
         " ".join(layer2["securitygroups"]),
         layer2["instances"]
     )
+    return groups_html
 
 
 ###############################################################################

@@ -3,3 +3,8 @@
 *.json
 *.pyc
 /venv
+build
+*dist*
+*egg*
+*#*
+*~*

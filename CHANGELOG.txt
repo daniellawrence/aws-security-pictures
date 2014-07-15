@@ -1,3 +1,14 @@
+Tuesday 15 July
+----------------------------------
+
+* Lots of good cleanup done by @hamidnazari
+* Hooked system upto travis with some basic test
+* Moved some files around, Getting ready for packaging
+
+Wednesday 9 July
+---------------------------------
+* Large refactor of code by @dwagon
+
 Tuesday 20 May
 ---------------------------------
 

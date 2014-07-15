@@ -223,13 +223,14 @@ def sg_rule_as_row(rule):
       <td align="right">%s</td>
     </tr>
     """ % (ips, portrange)
+    return rule_html
 
 
 def sg_rules_as_table(sg):
     inbound_rules = """label=<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
         <tr>
-          <td bgcolor="black" align="center"><font color="white">CIDR</font></td> 
+          <td bgcolor="black" align="center"><font color="white">CIDR</font></td>
           <td bgcolor="black" align="center"><font color="white">Ports</font></td>
         </tr>
     """
@@ -249,5 +250,8 @@ def sg_rules_as_table(sg):
 def main():
     gather_data()
 
+
 if __name__ == '__main__':
     main()
+
+# EOF

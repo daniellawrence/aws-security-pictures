@@ -25,7 +25,7 @@ import os
 import json
 import sys
 import argparse
-#from pprint import pprint
+# from pprint import pprint
 from collections import defaultdict
 
 aws_flags = ['--no-verify-ssl']
@@ -229,7 +229,7 @@ def get_sg_rules(_id, fh, direction=None, combine=True):
                     i['FromPort'], i['ToPort'], i['IpProtocol'].upper()
                 )
             ips = [x['CidrIp'] for x in i['IpRanges']]
-            #fh.write(" //\n", i)
+            # fh.write(" //\n", i)
             if not ips:
                 ips = [x['GroupId'] for x in i['UserIdGroupPairs']]
             ips = "<Br />".join(ips)
@@ -286,7 +286,7 @@ def get_nacl_rules(_id, fh, direction=None):
     else:
         acl_list = get_network_acl("--network-acl-ids %s" % _id)
 
-    #_id = _id.replace(' ', '_')
+    # _id = _id.replace(' ', '_')
 
     ingress = []
     egress = []
@@ -375,7 +375,7 @@ def generatePrivateSubnet(subgraph, layer1, layer2, fh):
     rule_map = [
         '%s_in' % '_'.join(layer2['nacl']),
         '%s_in' % '_'.join(layer2['securitygroups']),
-        #'%s' % layer2['instances'],
+        # '%s' % layer2['instances'],
         '%s_out' % '_'.join(layer2['securitygroups']),
         '%s_out' % '_'.join(layer2['nacl']),
     ]
@@ -692,4 +692,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-#EOF
+# EOF

@@ -659,9 +659,22 @@ def generateFooter(fh):
 
 ###############################################################################
 def displayElbList(fh):
+    fh.write("ELB List:\n")
+
     for elb in get_load_balancers():
         elbname = elb['LoadBalancerName']
-        fh.write("%s\n" % elbname)
+        fh.write("- %s\n" % elbname)
+
+def displayEc2List(fh):
+    fh.write("EC2 List:\n")
+
+    # pprint(get_ec2_instances())
+
+    for ec2 in get_ec2_instances():
+        for ec2instance in ec2['Instances']:
+            for tag in ec2instance['Tags']:
+                if tag['Key'] == 'Name':
+                    fh.write("- %s %s\n" % (ec2instance['InstanceId'], tag['Value']))
 
 
 ###############################################################################
@@ -675,6 +688,7 @@ def main():
 
     if args.elb is None and args.ec2 is None:
         displayElbList(fh)
+        displayEc2List(fh)
         return
 
     for elb in get_load_balancers():

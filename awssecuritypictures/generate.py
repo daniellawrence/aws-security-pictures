@@ -46,9 +46,15 @@ def echo(message, stderr=True):
 
 def aws_command(cmd):
     os.popen('mkdir -p /tmp/aws-cache').read()
-    safe_cmd = "/tmp/aws-cache/%s" % cmd.replace(' ', '_')
 
-    echo("%s" % cmd)
+    if profile:
+        aws_flags.extend(['--profile', profile])
+
+    flags = " ".join(aws_flags)
+    aws_cmd = "aws %s %s" % (flags, cmd)
+    echo("%s" % aws_cmd)
+
+    safe_cmd = "/tmp/aws-cache/%s" % aws_cmd.replace(' ', '_')
 
     if os.path.exists(safe_cmd):
         echo(" HIT\n")
@@ -59,7 +65,6 @@ def aws_command(cmd):
 
     echo(" MISS\n")
 
-    aws_cmd = "aws %s %s" % (" ".join(aws_flags), cmd)
     raw = os.popen(aws_cmd).read()
     raw_json = json.loads(raw)
 
@@ -510,9 +515,13 @@ def generateRouters(subgraph, layer1, layer2, fh):
 ###############################################################################
 def parseArgs():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--profile', default=None,
+                        help="AWS CLI profile to be used")
     parser.add_argument('--elb', default=None,
                         help="Which ELB to examine [all]")
-    parser.add_argument('--output', default=sys.stdout,
+    parser.add_argument('--ec2', default=None,
+                        help="Which EC2 to examine [all]")
+    parser.add_argument('-o', '--output', default=sys.stdout,
                         type=argparse.FileType('w'),
                         help="Which file to output to [stdout]")
     parser.add_argument('-v', '--verbose', default=False,
@@ -658,11 +667,13 @@ def displayElbList(fh):
 ###############################################################################
 def main():
     args = parseArgs()
-    global verbose
+    global verbose, profile
+
+    profile = args.profile
     verbose = args.verbose
     fh = args.output
 
-    if args.elb is None:
+    if args.elb is None and args.ec2 is None:
         displayElbList(fh)
         return
 

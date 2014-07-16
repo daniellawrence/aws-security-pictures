@@ -5,7 +5,7 @@
 set -e
 
 usage() {
-    echo "usage: $0 [-v] [-l ELBNAME] [-e EC2NAME] [-p PROFILE]"
+    echo "usage: $0 [-v] [-l ELBNAME] [-e EC2NAME] [-p PROFILE] [-q]"
 }
 
 execute() {
@@ -17,26 +17,22 @@ execute() {
 }
 
 OUTPUT=""
-VERBOSE=""
 
-while getopts 'hvp:e:l:' flag; do
+while getopts 'qhvp:e:l:' flag; do
     case $flag in
         v) VERBOSE='-v';;
         p) PROFILE="--profile $OPTARG";;
         l) ELB="--elb $OPTARG"; OUTPUT=$OPTARG;;
         e) EC2="--ec2 $OPTARG"; OUTPUT=$OPTARG;;
+        q) exec 1>/dev/null 2>/dev/null;;
         h|help) usage; exit 0;;
         *) usage; exit 64;;
     esac
 done
 
-if [[ -z $VERBOSE ]]; then
-    exec 1>/dev/null 2>/dev/null
-fi
-
 if [[ -n $OUTPUT ]]; then
     execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $PROFILE -o $OUTPUT.dot
-    execute dot -T png $OUTPUT.dot -o $OUTPUT.png
+    execute dot -T png $OUTPUT.dot -o $OUTPUT.png $VERBOSE
 
     if type 1>/dev/null 2>/dev/null eog; then
         execute eog $OUTPUT.png

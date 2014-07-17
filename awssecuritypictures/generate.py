@@ -92,10 +92,13 @@ def get_load_balancers(lookup_filter=''):
     return load_balancers['LoadBalancerDescriptions']
 
 
-def get_load_balancer_by_name(elb_name=None):
-    if not elb_name: return None
+def get_load_balancers_by_name(elb_names=None):
+    if not elb_names: return None
 
-    return get_load_balancers('--load-balancer-names %s' % elb_name)[0]
+    if isinstance(elb_names, list):
+        elb_names = ' '.join(elb_names)
+
+    return get_load_balancers('--load-balancer-names %s' % elb_names)
 
 
 def get_ec2_instances(lookup_filter=''):
@@ -136,7 +139,7 @@ def get_network_acl(lookup_filter=''):
 
 
 def get_elb_rules(_id, fh):
-    elb = get_load_balancer_by_name(_id)
+    elb = get_load_balancers_by_name(_id)[0]
     elb_node = """
     "%s_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">

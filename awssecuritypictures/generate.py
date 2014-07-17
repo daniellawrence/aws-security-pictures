@@ -92,6 +92,12 @@ def get_load_balancers(lookup_filter=''):
     return load_balancers['LoadBalancerDescriptions']
 
 
+def get_load_balancer_by_name(elb_name=None):
+    if not elb_name: return None
+
+    return get_load_balancers('--load-balancer-names %s' % elb_name)[0]
+
+
 def get_ec2_instances(lookup_filter=''):
     lookup_cmd = "ec2 describe-instances %s" % lookup_filter
     ec2_instances = aws_command(lookup_cmd)
@@ -130,7 +136,7 @@ def get_network_acl(lookup_filter=''):
 
 
 def get_elb_rules(_id, fh):
-    elb = get_load_balancers("--load-balancer-names %s" % _id)[0]
+    elb = get_load_balancer_by_name(_id)
     elb_node = """
     "%s_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">

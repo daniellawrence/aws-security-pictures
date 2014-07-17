@@ -90,7 +90,8 @@ def get_load_balancers(lookup_filter=''):
 
 
 def get_load_balancers_by_name(elb_names=None):
-    if not elb_names: return None
+    if not elb_names:
+        return None
 
     if isinstance(elb_names, list):
         elb_names = ' '.join(elb_names)

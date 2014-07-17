@@ -10,7 +10,7 @@ usage() {
 
 execute() {
     if [ $VERBOSE ]; then
-        echo "executing: $@"
+        echo "executing: $@" 1>&2
     fi
 
     $@

@@ -30,7 +30,7 @@ from collections import defaultdict
 
 aws_flags = ['--no-verify-ssl']
 verbose = False
-
+profile = None
 
 def echo(message, stderr=True):
     global verbose
@@ -45,10 +45,11 @@ def echo(message, stderr=True):
 
 
 def aws_command(cmd):
-    os.popen('mkdir -p /tmp/aws-cache').read()
-
+    global profile
     if profile:
         aws_flags.extend(['--profile', profile])
+
+    os.popen('mkdir -p /tmp/aws-cache').read()
 
     flags = " ".join(aws_flags)
     aws_cmd = "aws %s %s" % (flags, cmd)

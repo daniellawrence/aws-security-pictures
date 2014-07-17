@@ -47,9 +47,6 @@ def echo(message, stderr=True):
 def aws_command(cmd):
     os.popen('mkdir -p /tmp/aws-cache').read()
 
-    if profile:
-        aws_flags.extend(['--profile', profile])
-
     flags = " ".join(aws_flags)
     aws_cmd = "aws %s %s" % (flags, cmd)
     echo("%s" % aws_cmd)
@@ -674,11 +671,13 @@ def displayElbList(fh):
 ###############################################################################
 def main():
     args = parseArgs()
-    global verbose, profile
+    global verbose
 
-    profile = args.profile
     verbose = args.verbose
     fh = args.output
+
+    if args.profile:
+        aws_flags.extend(['--profile', args.profile])
 
     if args.elb is None:
         displayElbList(fh)

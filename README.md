@@ -18,23 +18,34 @@ How to Install
 How to run
 ----------
 
-Generate a picture of an elb.
+Generate a picture of an elb,
 
-	$ ./main.py <elbname>
+	$ ./main.py --elb <elbname>
 
-Generate a list of all elbs
+Generate a list of all elbs,
 
 	$ ./main.py
 
-Generate all rules within a subnet for review
+Make use of AWS CLI profiles,
+
+	$ ./main.py --profile <profilename>
+
+	or
+
+	$ ./main.py -p <profilename>
+
+Show help
+
+	$ ./main.py -h
+
+Generate all rules within a subnet for review,
 
 	$ ./firewall_review.py > x.dot; fdp -Tpng x.dot >x.png; eog x.png
 
-Generate the relationships of all the items with a account
+Generate the relationships of all the items with a account,
 
 	$ ./relationships.py > x.dot; fdp -Tpng x.dot >x.png; eog x.png
-	
-	
+
 
 Examples
 --------

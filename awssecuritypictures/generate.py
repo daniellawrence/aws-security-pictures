@@ -98,12 +98,13 @@ def get_ec2_instances(lookup_filter=''):
     lookup_cmd = "ec2 describe-instances %s" % lookup_filter
     reservations = aws_command(lookup_cmd)
     return [ec2 for reservation in reservations['Reservations']
-                for ec2 in reservation['Instances']
-                if not isEc2Terminated(ec2)]
+            for ec2 in reservation['Instances']
+            if not isEc2Terminated(ec2)]
 
 
 def get_ec2_instances_by_id(instance_ids=None):
-    if not instance_ids: return None
+    if not instance_ids:
+        return None
 
     if isinstance(instance_ids, list):
         instance_ids = ' '.join(instance_ids)
@@ -719,7 +720,7 @@ def main():
             layer_2 = collectLayer2(elb)
 
     elif args.ec2:
-        ec2 = get_ec2_instances_by_id(args.ec2)
+        # ec2 = get_ec2_instances_by_id(args.ec2)
         sys.exit("Not implemented yet.")
 
     generateHeader(fh)

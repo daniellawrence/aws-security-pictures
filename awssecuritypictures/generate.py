@@ -32,6 +32,7 @@ aws_flags = ['--no-verify-ssl']
 verbose = False
 profile = None
 
+
 def echo(message, stderr=True):
     global verbose
     if not verbose:

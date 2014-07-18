@@ -212,8 +212,8 @@ def get_elb_rules(_id, fh):
 
 
 def get_rtb_rules(_id, fh):
-    rtb = get_routetables_by_id(_id[0])[0]
-
+    _id = _id[0]
+    rtb = get_routetables_by_id(_id)[0]
     rtb_node = """
 "%s_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
@@ -228,7 +228,7 @@ def get_rtb_rules(_id, fh):
       <font color="white">desitination</font>
     </td>
   </tr>
-    """ % (_id[0], _id[0])
+    """ % (_id, _id)
 
     for route in rtb['Routes']:
         rule_html = """
@@ -236,7 +236,7 @@ def get_rtb_rules(_id, fh):
         <td align="right">%s</td>
         <td align="right">%s</td>
         </tr>
-        """ % (route["GatewayId"], route["DestinationCidrBlock"])
+        """ % (route.get('GatewayId', 'N/A'), route["DestinationCidrBlock"])
         rtb_node += rule_html
 
     rtb_node += "</table>>];"
@@ -728,8 +728,11 @@ def main():
 
             generateSubnet(elb_data,
                            fh,
-                           label="Public Subnet",
+                           label="Public Subnet\n",
                            endpoint=elb_data["endpoint"])
+
+            get_nacl_rules(elb_data["nacl"], fh=fh)
+            get_elb_rules(elb_data["endpoint"], fh=fh)
 
         elif args.ec2:
             elb_data = None
@@ -744,14 +747,12 @@ def main():
 
         generateSubnet(ec2_data,
                        fh,
-                       label="Private Subnet",
+                       label="Private Subnet\n",
                        endpoint=ec2_data["instances"])
 
         get_sg_rules(ec2_data["securitygroups"], fh=fh)
         get_rtb_rules(routetable_data['routetable'], fh=fh)
-        get_nacl_rules(elb_data["nacl"], fh=fh)
         get_nacl_rules(ec2_data["nacl"], fh=fh)
-        get_elb_rules(elb_data["endpoint"], fh=fh)
 
 
 ###############################################################################

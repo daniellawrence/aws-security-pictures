@@ -759,13 +759,11 @@ def generateGroups(layer1, layer2, fh):
 
 
 ###############################################################################
-def generateHeader(fh):
+@contextmanager
+def generateGraph(fh):
     fh.write("digraph g {\n")
     fh.write('node [margin=0 width=0.5 shape="plaintext"]\n')
-
-
-###############################################################################
-def generateFooter(fh):
+    yield
     fh.write("}\n")
 
 
@@ -811,38 +809,33 @@ def main():
         displayEc2List(fh)
         return
 
-    generateHeader(fh)
+    with generateGraph(fh):
+        if args.elb:
+            elb = get_load_balancers_by_name(args.elb)[0]
+            layer_1 = collectLayer1(elb)
+            layer_2 = collectLayer2(elb)
 
-    if args.elb:
-        elb = get_load_balancers_by_name(args.elb)[0]
-        layer_1 = collectLayer1(elb)
-        layer_2 = collectLayer2(elb)
+            generateSubnet(layer_1,
+                           fh,
+                           label="Public Subnet",
+                           endpoint=layer_1["endpoint"])
 
-        generateSubnet(layer_1,
+        elif args.ec2:
+            # ec2 = get_ec2_instances_by_id(args.ec2)[0]
+            sys.exit("Not implemented yet.")
+
+        generateRouters(fh, source=layer_1, target=layer_2)
+
+        generateSubnet(layer_2,
                        fh,
-                       label="Public Subnet",
-                       endpoint=layer_1["endpoint"])
+                       label="Private Subnet",
+                       endpoint=layer_2["instances"])
 
-    elif args.ec2:
-        # ec2 = get_ec2_instances_by_id(args.ec2)[0]
-        sys.exit("Not implemented yet.")
-
-    # generatePublicSubnet('1', layer_1, layer_2, fh=fh)
-    generateRouters(fh, source=layer_1, target=layer_2)
-
-    generateSubnet(layer_2,
-                   fh,
-                   label="Public Subnet",
-                   endpoint=layer_2["instances"])
-
-    # generatePrivateSubnet('3', layer_1, layer_2, fh=fh)
-
-    get_sg_rules(layer_2["securitygroups"], fh=fh)
-    get_rtb_rules(layer_1["routetable"], fh=fh)
-    get_nacl_rules(layer_1["nacl"], fh=fh)
-    get_nacl_rules(layer_2["nacl"], fh=fh)
-    get_elb_rules(layer_1["endpoint"], fh=fh)
-    generateFooter(fh)
+        get_sg_rules(layer_2["securitygroups"], fh=fh)
+        get_rtb_rules(layer_1["routetable"], fh=fh)
+        get_nacl_rules(layer_1["nacl"], fh=fh)
+        get_nacl_rules(layer_2["nacl"], fh=fh)
+        get_elb_rules(layer_1["endpoint"], fh=fh)
 
 
 ###############################################################################

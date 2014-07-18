@@ -67,11 +67,11 @@ Experiments
 
 Generate all rules within a subnet for review,
 
-	$ ./experiments/firewall_review.py > x.dot; fdp -Tpng x.dot >x.png; eog x.png
+	$ ./experiments/firewall_review.py > x.dot && fdp -Tpng x.dot >x.png && eog x.png
 
 Generate the relationships of all the items with a account,
 
-	$ ./experiments/relationships.py > x.dot; fdp -Tpng x.dot >x.png; eog x.png
+	$ ./experiments/relationships.py > x.dot && fdp -Tpng x.dot >x.png && eog x.png
 
 
 Examples

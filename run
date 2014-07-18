@@ -4,25 +4,41 @@
 ##################################################################
 set -e
 
-if [[ ${#} -eq 0 ]];then
-    echo "usage: $0 ELBNAME [PROFILE]"
-    echo
-    awssecuritypictures/generate.py
-    exit 1
-fi
+usage() {
+    echo "usage: $0 [-v] [-l ELBNAME] [-e EC2NAME] [-p PROFILE] [-q]"
+}
 
-ELB=${1}
-PROFILE=${2}
+execute() {
+    if [ $VERBOSE ]; then
+        echo "executing: $@" 1>&2
+    fi
 
-if [ ! -z "$PROFILE" ]; then
-    PROFILE="--profile $PROFILE"
-fi
+    $@
+}
 
-awssecuritypictures/generate.py -v --elb ${ELB} $PROFILE > ${ELB}.dot
-dot -T png ${ELB}.dot > ${ELB}.png
+OUTPUT=""
 
-if type eog 2>/dev/null; then
-    eog ${ELB}.png
-elif type open 2>/dev/null; then
-    open ${ELB}.png
+while getopts 'qhvp:e:l:' flag; do
+    case $flag in
+        v) VERBOSE='-v';;
+        p) PROFILE="--profile $OPTARG";;
+        l) ELB="--elb $OPTARG"; OUTPUT=$OPTARG;;
+        e) EC2="--ec2 $OPTARG"; OUTPUT=$OPTARG;;
+        q) exec 1>/dev/null 2>/dev/null;;
+        h|help) usage; exit 0;;
+        *) usage; exit 64;;
+    esac
+done
+
+if [[ -n $OUTPUT ]]; then
+    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $PROFILE -o $OUTPUT.dot
+    execute dot -T png $OUTPUT.dot -o $OUTPUT.png $VERBOSE
+
+    if type 1>/dev/null 2>/dev/null eog; then
+        execute eog $OUTPUT.png
+    elif type 1>/dev/null 2>/dev/null open; then
+        execute open $OUTPUT.png
+    fi
+else
+    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $PROFILE
 fi

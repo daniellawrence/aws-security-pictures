@@ -717,14 +717,9 @@ def main():
         return
 
     if args.elb:
-        for elb in get_load_balancers():
-            elbname = elb['LoadBalancerName']
-            if args.elb != elbname:
-                continue
-            if not elb['Scheme'] == 'internet-facing':
-                continue
-            layer_1 = collectLayer1(elb)
-            layer_2 = collectLayer2(elb)
+        elb = get_load_balancers_by_name(args.elb)[0]
+        layer_1 = collectLayer1(elb)
+        layer_2 = collectLayer2(elb)
 
     elif args.ec2:
         # ec2 = get_ec2_instances_by_id(args.ec2)

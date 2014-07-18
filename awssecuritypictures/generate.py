@@ -137,6 +137,16 @@ def get_routetables(lookup_filter=''):
     return rtb['RouteTables']
 
 
+def get_routetables_by_subnet_id(subnet_ids=None):
+    if not subnet_ids:
+        return None
+
+    if isinstance(subnet_ids, list):
+        subnet_ids = ','.join(subnet_ids)
+
+    return get_routetables("--filters Name=association.subnet-id,Values=%s" % subnet_ids)
+
+
 def get_network_acl(lookup_filter=''):
     if isinstance(lookup_filter, list):
         r = []
@@ -147,6 +157,16 @@ def get_network_acl(lookup_filter=''):
     lookup_cmd = "ec2 describe-network-acls %s" % lookup_filter
     nacl = aws_command(lookup_cmd)
     return nacl['NetworkAcls']
+
+
+def get_network_acl_by_subnet_id(subnet_ids=None):
+    if not subnet_ids:
+        return None
+
+    if isinstance(subnet_ids, list):
+        subnet_ids = ','.join(subnet_ids)
+
+    return get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnet_ids)
 
 
 def get_elb_rules(_id, fh):
@@ -387,71 +407,6 @@ def get_nacl_rules(_id, fh, direction=None):
     return ingress_node, egress_node
 
 
-###############################################################################
-# def generatePrivateSubnet(subgraph, layer1, layer2, fh):
-#     fh.write("subgraph cluster_3 {\n")
-
-#     fh.write('"%s" -> "l2_%s_in";\n' % (
-#         "_".join(layer1["routetable"]),
-#         "_".join(layer2["nacl"]),
-#     ))
-
-#     rule_map = [
-#         '%s_in' % '_'.join(layer2['nacl']),
-#         '%s_in' % '_'.join(layer2['securitygroups']),
-#         # '%s' % layer2['instances'],
-#         '%s_out' % '_'.join(layer2['securitygroups']),
-#         '%s_out' % '_'.join(layer2['nacl']),
-#     ]
-
-#     fh.write('"l2_%s_in" -> "l2_%s_in";\n' % (
-#         '_'.join(layer2['nacl']),
-#         '_'.join(layer2['securitygroups'])
-#     ))
-#     fh.write('"l2_%s_in" -> "l2_%s";\n' % (
-#         '_'.join(layer2['securitygroups']),
-#         " ".join(layer2['instances'])
-#     ))
-#     fh.write('"l2_%s" [label="Instances\\n%s"];\n' % (
-#         " ".join(layer2['instances']),
-#         "\\n".join(layer2['instances'])
-#     ))
-
-#     fh.write('"l2_%s" -> "l2_%s_out";\n' % (
-#         " ".join(layer2['instances']),
-#         '_'.join(layer2['securitygroups']),
-#     ))
-#     fh.write('"l2_%s_out" -> "l2_%s_out";\n' % (
-#         '_'.join(layer2['securitygroups']),
-#         '_'.join(layer2['nacl']),
-#     ))
-
-#     for item in rule_map:
-#         fh.write('"l2_%s" -> "%s_rules";\n' % (item, item))
-#         fh.write('{rank=same; "l2_%s" "%s_rules"};\n' % (item, item))
-
-#     fh.write('label = "Private Subnet\\n%s"\n' % "\\n".join(layer2["subnets"]))
-
-#     fh.write('"l2_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
-#         "_".join(layer2["nacl"]),
-#         " ".join(layer2["nacl"])
-#     ))
-#     fh.write('"l2_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
-#         "_".join(layer2["nacl"]),
-#         " ".join(layer2["nacl"])
-#     ))
-#     fh.write('"l2_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
-#         "_".join(layer2["securitygroups"]),
-#         "\\n".join(layer2["securitygroups"]),
-#     ))
-#     fh.write('"l2_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
-#         "_".join(layer2["securitygroups"]),
-#         "\\n".join(layer2["securitygroups"]),
-#     ))
-
-#     fh.write("}\n")
-
-
 @contextmanager
 def generateSubgraph(fh, **kwargs):
     generateSubgraph.counter += 1
@@ -541,89 +496,33 @@ def generateSubnet(layer, fh, **kwargs):
 
 
 ###############################################################################
-# def generatePublicSubnet(subgraph, layer1, layer2, fh):
-#     rule_map = [
-#         "%s_in" % "_".join(layer1["nacl"]),
-#         "%s_in" % "_".join(layer1["securitygroups"]),
-#         "%s" % layer1["endpoint"],
-#         "%s_out" % "_".join(layer1["securitygroups"]),
-#         "%s_out" % "_".join(layer1["nacl"]),
-#     ]
-#     fh.write("subgraph cluster_%s {\n" % subgraph)
-#     fh.write('"l1_%s_in" -> "l1_%s_in";\n' % (
-#         "_".join(layer1["nacl"]),
-#         "_".join(layer1["securitygroups"])))
-
-#     fh.write('"l1_%s_in" [label="Network ACL (inbound)\\n%s"];\n' % (
-#         "_".join(layer1["nacl"]),
-#         " ".join(layer1["nacl"])
-#     ))
-#     fh.write('"l1_%s_out" [label="Network ACL (outbound)\\n%s"];\n' % (
-#         "_".join(layer1["nacl"]),
-#         " ".join(layer1["nacl"])
-#     ))
-#     fh.write('"l1_%s_in" [label="Security Group (inbound)\\n%s"];\n' % (
-#         "_".join(layer1["securitygroups"]),
-#         "\\n".join(layer1["securitygroups"]),
-#     ))
-#     fh.write('"l1_%s_out" [label="Security Group (outbound)\\n%s"];\n' % (
-#         "_".join(layer1["securitygroups"]),
-#         "\\n".join(layer1["securitygroups"]),
-#     ))
-
-#     fh.write('"l1_%s_in" -> "l1_%s";\n' % (
-#         "_".join(layer1["securitygroups"]),
-#         layer1["endpoint"]
-#     ))
-#     fh.write('"l1_%s" -> "l1_%s_out";\n' % (
-#         layer1["endpoint"],
-#         "_".join(layer1["securitygroups"])
-#     ))
-
-#     fh.write('"l1_%s_out" -> "l1_%s_out";\n' % (
-#         "_".join(layer1["securitygroups"]),
-#         "_".join(layer1["nacl"])
-#     ))
-
-#     get_sg_rules(layer1["securitygroups"], fh=fh)
-
-#     fh.write('"l1_%s" [label="%s"];\n' % (
-#         layer1["endpoint"],
-#         layer1["endpoint"]
-#     ))
-
-#     for item in rule_map:
-#         fh.write('"l1_%s" -> "%s_rules";\n' % (item, item))
-#         fh.write('{rank=same; "l1_%s" "%s_rules"};\n' % (item, item))
-
-#     fh.write('label = "Public Subnet\\n%s"\n' % "\\n".join(layer1["subnets"]))
-#     fh.write("}\n")
-
-
-###############################################################################
-def generateRouters(fh, **kwargs):
-    source = kwargs.get('source')
-    target = kwargs.get('target')
+def generateRouters(routetable, fh, **kwargs):
+    source = kwargs.get('source', None)
+    target = kwargs.get('target', None)
 
     with generateSubgraph(fh, label="Routers"):
-        rt = "_".join(source["routetable"])
+        rt = "_".join(routetable['routetable'])
 
-        fh.write('"l1_%s_out" -> "%s";\n' % (
-            "_".join(source["nacl"]),
-            rt,
-        ))
+        if source:
+            fh.write('"l%(count)d_%(source)s_out" -> "%(target)s";\n' % {
+                'count': generateSubgraph.counter - 1,
+                'source': "_".join(source["nacl"]),
+                'target': rt,
+            })
 
         fh.write('"%s" -> "%s_rules";\n' % (rt, rt))
         fh.write('{rank=same; "%s" "%s_rules"};\n' % (rt, rt))
         fh.write('"%s" [label="Route Tables\\n%s"];\n' % (
             rt,
-            "\\n".join(source["routetable"]),
+            "\\n".join(routetable['routetable']),
         ))
 
-    fh.write('"%s" -> "l3_%s_in";\n' % (
-        "_".join(source["routetable"]),
-        "_".join(target["nacl"]),
-    ))
+    if target:
+        fh.write('"%(source)s" -> "l%(count)d_%(target)s_in";\n' % {
+            'count': generateSubgraph.counter + 1,
+            'source': "_".join(routetable['routetable']),
+            'target': "_".join(target["nacl"]),
+        })
 
 
 ###############################################################################
@@ -646,7 +545,7 @@ def parseArgs():
 
 
 ###############################################################################
-def collectLayer1(elb):
+def collectElbData(elb):
     data = defaultdict(list)
     mappings = []
     for l in elb['ListenerDescriptions']:
@@ -659,26 +558,28 @@ def collectLayer1(elb):
     data['mappings'] = mappings
     data['endpoint'] = elb['LoadBalancerName']
 
-    subnets_csv = ",".join(data['subnets'])
-
-    # Route table
-    routetables = get_routetables("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
-    data['routetable_raw'] = routetables
-    data['routetable'] = [x['RouteTableId'] for x in routetables]
-
     # Network ACL
-    nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+    nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % ",".join(data['subnets']))
     data['nacl_raw'] = nacl
     data['nacl'] = [x['NetworkAclId'] for x in nacl]
 
     return data
 
 
-###############################################################################
-def collectLayer2(elb):
+def collectRoutetableData(subnets):
     data = defaultdict(list)
-    # Instances
-    instances = [x['InstanceId'] for x in elb['Instances']]
+
+    # Route table
+    routetables = get_routetables_by_subnet_id(subnets)
+    data['routetable_raw'] = routetables
+    data['routetable'] = [x['RouteTableId'] for x in routetables]
+
+    return data
+
+
+###############################################################################
+def collectEc2Data(instances):
+    data = defaultdict(list)
     data['instances'] = instances
 
     instances = get_ec2_instances_by_id(instances)
@@ -693,8 +594,9 @@ def collectLayer2(elb):
         data['instances'].append(i['InstanceId'])
 
         # Network ACL
-        subnets_csv = ",".join(subnets)
-        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)
+        subnets_csv = ",".join(subnets)  # TODO: REMOVE
+        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)  # TODO: REMOVE
+        # nacl = get_network_acl_by_subnet_id(subnets)
         data['nacl_raw'] += nacl
         data['nacl'] += [x['NetworkAclId'] for x in nacl]
 
@@ -812,30 +714,36 @@ def main():
     with generateGraph(fh):
         if args.elb:
             elb = get_load_balancers_by_name(args.elb)[0]
-            layer_1 = collectLayer1(elb)
-            layer_2 = collectLayer2(elb)
+            elb_data = collectElbData(elb)
+            ec2_instances = [ec2instance['InstanceId']
+                             for ec2instance in elb['Instances']]
 
-            generateSubnet(layer_1,
+            generateSubnet(elb_data,
                            fh,
                            label="Public Subnet",
-                           endpoint=layer_1["endpoint"])
+                           endpoint=elb_data["endpoint"])
 
         elif args.ec2:
-            # ec2 = get_ec2_instances_by_id(args.ec2)[0]
-            sys.exit("Not implemented yet.")
+            elb_data = None
+            ec2_instances = [args.ec2]
 
-        generateRouters(fh, source=layer_1, target=layer_2)
+        ec2_data = collectEc2Data(ec2_instances)
 
-        generateSubnet(layer_2,
+        subnets = elb_data['subnets'] if elb_data else ec2_data['subnets']
+        routetable_data = collectRoutetableData(subnets)
+
+        generateRouters(routetable_data, fh, source=elb_data, target=ec2_data)
+
+        generateSubnet(ec2_data,
                        fh,
                        label="Private Subnet",
-                       endpoint=layer_2["instances"])
+                       endpoint=ec2_data["instances"])
 
-        get_sg_rules(layer_2["securitygroups"], fh=fh)
-        get_rtb_rules(layer_1["routetable"], fh=fh)
-        get_nacl_rules(layer_1["nacl"], fh=fh)
-        get_nacl_rules(layer_2["nacl"], fh=fh)
-        get_elb_rules(layer_1["endpoint"], fh=fh)
+        get_sg_rules(ec2_data["securitygroups"], fh=fh)
+        get_rtb_rules(routetable_data['routetable'], fh=fh)
+        get_nacl_rules(elb_data["nacl"], fh=fh)
+        get_nacl_rules(ec2_data["nacl"], fh=fh)
+        get_elb_rules(elb_data["endpoint"], fh=fh)
 
 
 ###############################################################################

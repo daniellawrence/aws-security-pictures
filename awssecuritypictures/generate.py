@@ -137,6 +137,16 @@ def get_routetables(lookup_filter=''):
     return rtb['RouteTables']
 
 
+def get_routetables_by_id(routetable_ids=None):
+    if not routetable_ids:
+        return None
+
+    if isinstance(routetable_ids, list):
+        routetable_ids = ' '.join(routetable_ids)
+
+    return get_routetables("--route-table-ids %s" % routetable_ids)
+
+
 def get_routetables_by_subnet_id(subnet_ids=None):
     if not subnet_ids:
         return None
@@ -202,7 +212,7 @@ def get_elb_rules(_id, fh):
 
 
 def get_rtb_rules(_id, fh):
-    rtb = get_routetables("--route-table-ids %s" % _id[0])[0]
+    rtb = get_routetables_by_id(_id[0])[0]
 
     rtb_node = """
 "%s_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
@@ -559,7 +569,7 @@ def collectElbData(elb):
     data['endpoint'] = elb['LoadBalancerName']
 
     # Network ACL
-    nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % ",".join(data['subnets']))
+    nacl = get_network_acl_by_subnet_id(data['subnets'])
     data['nacl_raw'] = nacl
     data['nacl'] = [x['NetworkAclId'] for x in nacl]
 
@@ -594,9 +604,7 @@ def collectEc2Data(instances):
         data['instances'].append(i['InstanceId'])
 
         # Network ACL
-        subnets_csv = ",".join(subnets)  # TODO: REMOVE
-        nacl = get_network_acl("--filters Name=association.subnet-id,Values=%s" % subnets_csv)  # TODO: REMOVE
-        # nacl = get_network_acl_by_subnet_id(subnets)
+        nacl = get_network_acl_by_subnet_id(subnets)
         data['nacl_raw'] += nacl
         data['nacl'] += [x['NetworkAclId'] for x in nacl]
 

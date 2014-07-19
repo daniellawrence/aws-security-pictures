@@ -39,7 +39,7 @@ Generate a picture of an ELB,
 
 Generate a picture of an EC2,
 
-	$ ./awssecuritypictures/generate.py --ec2 EC2NAME -o output.dot
+	$ ./awssecuritypictures/generate.py --ec2 EC2ID -o output.dot
 
 The above generate the dot files required. In order to see the output image,
 

@@ -118,6 +118,25 @@ def get_ec2_instances_by_id(instance_ids=None):
     return get_ec2_instances('--instance-ids %s' % instance_ids)
 
 
+def get_rds_instances(lookup_filter=''):
+    lookup_cmd = "rds describe-db-instances %s" % lookup_filter
+    db_instances = aws_command(lookup_cmd)
+    return db_instances['DBInstances']
+    # return [ec2 for reservation in reservations['Reservations']
+    #         for ec2 in reservation['Instances']
+    #         if not isEc2Terminated(ec2)]
+
+
+def get_rds_instances_by_id(instance_ids=None):
+    if not instance_ids:
+        return None
+
+    if isinstance(instance_ids, list):
+        instance_ids = ' '.join(instance_ids)
+
+    return get_rds_instances('--db-instance-identifier %s' % instance_ids)
+
+
 def get_security_groups(lookup_filter=''):
     if isinstance(lookup_filter, list):
         r = []
@@ -589,7 +608,6 @@ def collectRoutetableData(subnets):
     return data
 
 
-###############################################################################
 def collectEc2Data(instances):
     data = defaultdict(list)
     data['instances'] = instances
@@ -612,6 +630,17 @@ def collectEc2Data(instances):
 
     data['securitygroups'] = list(set(data['securitygroups']))
     data['instances'] = list(set(data['instances']))
+
+    return data
+
+
+def collectRdsData(instances):
+    data = defaultdict(list)
+    data['instances'] = instances
+
+    instances = get_rds_instances_by_id(instances)
+
+    # TODO: Get NACL and SecurityGroup data
 
     return data
 
@@ -695,6 +724,13 @@ def displayEc2List(fh):
         fh.write("- %s %s\n" % (ec2instance['InstanceId'], getEc2Name(ec2instance)))
 
 
+def displayRdsList(fh):
+    fh.write("RDS List:\n")
+
+    for rds_instance in get_rds_instances():
+        fh.write("- %s\n" % rds_instance['DBInstanceIdentifier'])
+
+
 def getEc2Name(ec2instance):
     for tag in ec2instance['Tags']:
         if tag['Key'] == 'Name':
@@ -719,7 +755,8 @@ def main():
     if args.elb is None and args.ec2 is None:
         displayElbList(fh)
         displayEc2List(fh)
-        return
+        displayRdsList(fh)
+        sys.exit(0)
 
     with generateGraph(fh):
         if args.elb:

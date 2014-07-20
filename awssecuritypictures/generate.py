@@ -541,9 +541,11 @@ def parseArgs():
     parser.add_argument('-p', '--profile', default=None,
                         help="AWS CLI profile to be used")
     parser.add_argument('--elb', default=None,
-                        help="Which ELB to examine [all]")
+                        help="Which ELB to examine")
     parser.add_argument('--ec2', default=None,
-                        help="Which EC2 to examine [all]")
+                        help="Which EC2 to examine")
+    parser.add_argument('--rds', default=None,
+                        help="Which RDS to attach")
     parser.add_argument('-o', '--output', default=sys.stdout,
                         type=argparse.FileType('w'),
                         help="Which file to output to [stdout]")

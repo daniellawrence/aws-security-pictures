@@ -33,13 +33,21 @@ code.
 How to run
 ----------
 
-Generate a picture of an ELB,
+Generate a picture of an ELB and attached EC2s,
 
 	$ ./awssecuritypictures/generate.py --elb ELBNAME -o output.dot
 
 Generate a picture of an EC2,
 
 	$ ./awssecuritypictures/generate.py --ec2 EC2ID -o output.dot
+
+Attach and RDS to a picture of an ELB and attached EC2s, or just an EC2,
+
+	$ ./awssecuritypictures/generate.py --elb ELBNAME --rds RDSID -o output.dot
+
+or
+
+	$ ./awssecuritypictures/generate.py --ec2 EC2ID --rds RDSID -o output.dot
 
 The above generate the dot files required. In order to see the output image,
 
@@ -61,6 +69,14 @@ More handy arugments can be found here,
 
 	$ ./awssecuritypictures/generate.py -h
 
+It is recommended to utiliase a runscript provided that executes above commands
+in one go. More info,
+
+	$ ./run -h
+
+Example:
+
+	$ ./run -p PROFILENAME -l ELBNAME -r RDSID
 
 Experiments
 -----------

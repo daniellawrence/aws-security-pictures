@@ -628,8 +628,9 @@ def collectEc2Data(instances):
         data['nacl_raw'] += nacl
         data['nacl'] += [x['NetworkAclId'] for x in nacl]
 
-    data['securitygroups'] = list(set(data['securitygroups']))
     data['instances'] = list(set(data['instances']))
+    data['subnets'] = list(set(data['subnets']))
+    data['securitygroups'] = list(set(data['securitygroups']))
 
     return data
 
@@ -640,7 +641,22 @@ def collectRdsData(instances):
 
     instances = get_rds_instances_by_id(instances)
 
-    # TODO: Get NACL and SecurityGroup data
+    for instance in instances:
+        securitygroups = [sg['VpcSecurityGroupId']
+                          for sg in instance['VpcSecurityGroups']]
+        subnets = [subnet['SubnetIdentifier']
+                   for subnet in instance['DBSubnetGroup']['Subnets']]
+
+        data['subnets'] += subnets
+        data['securitygroups'] += securitygroups
+
+        nacl = get_network_acl_by_subnet_id(subnets)
+        data['nacl_raw'] += nacl
+        data['nacl'] += [x['NetworkAclId'] for x in nacl]
+
+    data['instances'] = list(set(data['instances']))
+    data['subnets'] = list(set(data['subnets']))
+    data['securitygroups'] = list(set(data['securitygroups']))
 
     return data
 
@@ -773,14 +789,14 @@ def main():
             get_nacl_rules(elb_data["nacl"], fh=fh)
             get_elb_rules(elb_data["endpoint"], fh=fh)
 
+            routetable_data = collectRoutetableData(elb_data['subnets'])
+            get_rtb_rules(routetable_data['routetable'], fh=fh)
+
         elif args.ec2:
             elb_data = None
             ec2_instances = [args.ec2]
 
         ec2_data = collectEc2Data(ec2_instances)
-
-        subnets = elb_data['subnets'] if elb_data else ec2_data['subnets']
-        routetable_data = collectRoutetableData(subnets)
 
         generateRouters(routetable_data, fh, source=elb_data, target=ec2_data)
 
@@ -790,8 +806,22 @@ def main():
                        endpoint=ec2_data["instances"])
 
         get_sg_rules(ec2_data["securitygroups"], fh=fh)
-        get_rtb_rules(routetable_data['routetable'], fh=fh)
         get_nacl_rules(ec2_data["nacl"], fh=fh)
+
+        if args.rds:
+            rds_data = collectRdsData([args.rds])
+
+            routetable_data = collectRoutetableData(ec2_data['subnets'])
+            generateRouters(routetable_data, fh, source=ec2_data, target=rds_data)
+            get_rtb_rules(routetable_data['routetable'], fh=fh)
+
+            generateSubnet(rds_data,
+                           fh,
+                           label="Database Subnet\n",
+                           endpoint=rds_data["instances"])
+
+            get_sg_rules(rds_data["securitygroups"], fh=fh)
+            get_nacl_rules(rds_data["nacl"], fh=fh)
 
 
 ###############################################################################

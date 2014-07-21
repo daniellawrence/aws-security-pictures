@@ -31,6 +31,7 @@ from contextlib import contextmanager
 
 aws_flags = ['--no-verify-ssl']
 verbose = False
+bypass_cache = False
 
 
 def echo(message, stderr=True):
@@ -45,6 +46,20 @@ def echo(message, stderr=True):
     stream.write(message)
 
 
+def get_cached_command(cmd):
+    if not bypass_cache:
+        if os.path.exists(cmd):
+            echo(" HIT\n")
+
+            with open(cmd, 'r') as jsonfile:
+                raw_json = json.load(jsonfile)
+                return raw_json
+
+        echo(" MISS\n")
+
+    return False
+
+
 def aws_command(cmd):
     os.popen('mkdir -p /tmp/aws-cache').read()
 
@@ -54,14 +69,10 @@ def aws_command(cmd):
 
     safe_cmd = "/tmp/aws-cache/%s" % aws_cmd.replace(' ', '_')
 
-    if os.path.exists(safe_cmd):
-        echo(" HIT\n")
+    cached_cmd = get_cached_command(safe_cmd)
 
-        with open(safe_cmd, 'r') as jsonfile:
-            raw_json = json.load(jsonfile)
-            return raw_json
-
-    echo(" MISS\n")
+    if cached_cmd:
+        return cached_cmd
 
     raw = os.popen(aws_cmd).read()
     raw_json = json.loads(raw)
@@ -562,18 +573,28 @@ def generateRouters(routetable, fh, **kwargs):
 ###############################################################################
 def parseArgs():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--profile', default=None,
+    parser.add_argument('-p', '--profile',
+                        default=None,
                         help="AWS CLI profile to be used")
-    parser.add_argument('--elb', default=None,
+    parser.add_argument('--elb',
+                        default=None,
                         help="Which ELB to examine")
-    parser.add_argument('--ec2', default=None,
+    parser.add_argument('--ec2',
+                        default=None,
                         help="Which EC2 to examine")
-    parser.add_argument('--rds', default=None,
+    parser.add_argument('--rds',
+                        default=None,
                         help="Which RDS to attach")
-    parser.add_argument('-o', '--output', default=sys.stdout,
+    parser.add_argument('-b', '--bypass-cache',
+                        default=False,
+                        action="store_true",
+                        help="Invalidate cache and re-pull the data.")
+    parser.add_argument('-o', '--output',
+                        default=sys.stdout,
                         type=argparse.FileType('w'),
                         help="Which file to output to [stdout]")
-    parser.add_argument('-v', '--verbose', default=False,
+    parser.add_argument('-v', '--verbose',
+                        default=False,
                         action='store_true',
                         help="Print some details")
     args = parser.parse_args()
@@ -765,9 +786,10 @@ def isEc2Terminated(ec2instance):
 ###############################################################################
 def main():
     args = parseArgs()
-    global verbose
+    global verbose, bypass_cache
 
     verbose = args.verbose
+    bypass_cache = args.bypass_cache
     fh = args.output
 
     if args.profile:

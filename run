@@ -5,7 +5,7 @@
 set -e
 
 usage() {
-    echo "usage: $0 [-v] [-l ELBNAME] [-e EC2ID] [-r RDSID] [-p PROFILE] [-q]"
+    echo "usage: $0 [-v] [-b] [-l ELBNAME] [-e EC2ID] [-r RDSID] [-p PROFILE] [-q]"
 }
 
 execute() {
@@ -18,9 +18,10 @@ execute() {
 
 OUTPUT=""
 
-while getopts 'qhvp:e:l:r:' flag; do
+while getopts 'qhvbp:e:l:r:' flag; do
     case $flag in
         v) VERBOSE='-v';;
+        b) BYPASS_CACHE='-b';;
         p) PROFILE="--profile $OPTARG";;
         l) ELB="--elb $OPTARG"; OUTPUT=$OPTARG;;
         e) EC2="--ec2 $OPTARG"; OUTPUT=$OPTARG;;
@@ -32,7 +33,7 @@ while getopts 'qhvp:e:l:r:' flag; do
 done
 
 if [[ -n $OUTPUT ]]; then
-    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $RDS $PROFILE -o $OUTPUT.dot
+    execute awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE -o $OUTPUT.dot
     execute dot -T png $OUTPUT.dot -o $OUTPUT.png $VERBOSE
 
     if type 1>/dev/null 2>/dev/null eog; then
@@ -41,5 +42,5 @@ if [[ -n $OUTPUT ]]; then
         execute open $OUTPUT.png
     fi
 else
-    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $RDS $PROFILE
+    execute awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE
 fi

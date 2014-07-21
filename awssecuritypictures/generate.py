@@ -498,8 +498,6 @@ def generateSubnet(layer, fh, **kwargs):
             'target': "_".join(layer["nacl"])
         })
 
-        get_sg_rules(layer["securitygroups"], fh=fh)
-
         fh.write('"l%(count)d_%(nodename)s" [label="%(nodename)s"];\n' % {
             'count': generateSubgraph.counter,
             'nodename': endpoint
@@ -523,21 +521,26 @@ def generateSubnet(layer, fh, **kwargs):
                 'rule': rule
             })
 
+    get_sg_rules(layer["securitygroups"], fh=fh)
+    get_nacl_rules(layer["nacl"], fh=fh)
+
 
 ###############################################################################
 def generateRouters(routetable, fh, **kwargs):
     source = kwargs.get('source', None)
     target = kwargs.get('target', None)
 
+    if not source:
+        return
+
     with generateSubgraph(fh, label="Routers"):
         rt = "_".join(routetable['routetable'])
 
-        if source:
-            fh.write('"l%(count)d_%(source)s_out" -> "%(target)s";\n' % {
-                'count': generateSubgraph.counter - 1,
-                'source': "_".join(source["nacl"]),
-                'target': rt,
-            })
+        fh.write('"l%(count)d_%(source)s_out" -> "%(target)s";\n' % {
+            'count': generateSubgraph.counter - 1,
+            'source': "_".join(source["nacl"]),
+            'target': rt,
+        })
 
         fh.write('"%s" -> "%s_rules";\n' % (rt, rt))
         fh.write('{rank=same; "%s" "%s_rules"};\n' % (rt, rt))
@@ -552,6 +555,8 @@ def generateRouters(routetable, fh, **kwargs):
             'source': "_".join(routetable['routetable']),
             'target': "_".join(target["nacl"]),
         })
+
+    get_rtb_rules(routetable['routetable'], fh=fh)
 
 
 ###############################################################################
@@ -775,53 +780,50 @@ def main():
         sys.exit(0)
 
     with generateGraph(fh):
+        routetable_data = None
+        ec2_instances = [args.ec2]
+
         if args.elb:
             elb = get_load_balancers_by_name(args.elb)[0]
             elb_data = collectElbData(elb)
             ec2_instances = [ec2instance['InstanceId']
                              for ec2instance in elb['Instances']]
 
+            get_elb_rules(elb_data["endpoint"], fh=fh)
+
             generateSubnet(elb_data,
                            fh,
                            label="Public Subnet\n",
                            endpoint=elb_data["endpoint"])
 
-            get_nacl_rules(elb_data["nacl"], fh=fh)
-            get_elb_rules(elb_data["endpoint"], fh=fh)
-
             routetable_data = collectRoutetableData(elb_data['subnets'])
-            get_rtb_rules(routetable_data['routetable'], fh=fh)
-
-        elif args.ec2:
-            elb_data = None
-            ec2_instances = [args.ec2]
 
         ec2_data = collectEc2Data(ec2_instances)
 
-        generateRouters(routetable_data, fh, source=elb_data, target=ec2_data)
+        if routetable_data:
+            generateRouters(routetable_data,
+                            fh,
+                            source=elb_data,
+                            target=ec2_data)
 
         generateSubnet(ec2_data,
                        fh,
                        label="Private Subnet\n",
                        endpoint=ec2_data["instances"])
 
-        get_sg_rules(ec2_data["securitygroups"], fh=fh)
-        get_nacl_rules(ec2_data["nacl"], fh=fh)
-
         if args.rds:
             rds_data = collectRdsData([args.rds])
-
             routetable_data = collectRoutetableData(ec2_data['subnets'])
-            generateRouters(routetable_data, fh, source=ec2_data, target=rds_data)
-            get_rtb_rules(routetable_data['routetable'], fh=fh)
+
+            generateRouters(routetable_data,
+                            fh,
+                            source=ec2_data,
+                            target=rds_data)
 
             generateSubnet(rds_data,
                            fh,
                            label="Database Subnet\n",
                            endpoint=rds_data["instances"])
-
-            get_sg_rules(rds_data["securitygroups"], fh=fh)
-            get_nacl_rules(rds_data["nacl"], fh=fh)
 
 
 ###############################################################################

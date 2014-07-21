@@ -5,7 +5,7 @@
 set -e
 
 usage() {
-    echo "usage: $0 [-v] [-l ELBNAME] [-e EC2NAME] [-p PROFILE] [-q]"
+    echo "usage: $0 [-v] [-l ELBNAME] [-e EC2ID] [-r RDSID] [-p PROFILE] [-q]"
 }
 
 execute() {
@@ -18,12 +18,13 @@ execute() {
 
 OUTPUT=""
 
-while getopts 'qhvp:e:l:' flag; do
+while getopts 'qhvp:e:l:r:' flag; do
     case $flag in
         v) VERBOSE='-v';;
         p) PROFILE="--profile $OPTARG";;
         l) ELB="--elb $OPTARG"; OUTPUT=$OPTARG;;
         e) EC2="--ec2 $OPTARG"; OUTPUT=$OPTARG;;
+        r) RDS="--rds $OPTARG";;
         q) exec 1>/dev/null 2>/dev/null;;
         h|help) usage; exit 0;;
         *) usage; exit 64;;
@@ -31,7 +32,7 @@ while getopts 'qhvp:e:l:' flag; do
 done
 
 if [[ -n $OUTPUT ]]; then
-    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $PROFILE -o $OUTPUT.dot
+    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $RDS $PROFILE -o $OUTPUT.dot
     execute dot -T png $OUTPUT.dot -o $OUTPUT.png $VERBOSE
 
     if type 1>/dev/null 2>/dev/null eog; then
@@ -40,5 +41,5 @@ if [[ -n $OUTPUT ]]; then
         execute open $OUTPUT.png
     fi
 else
-    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $PROFILE
+    execute awssecuritypictures/generate.py $VERBOSE $ELB $EC2 $RDS $PROFILE
 fi

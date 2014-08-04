@@ -30,7 +30,6 @@ from collections import defaultdict
 
 aws_flags = ['--no-verify-ssl']
 verbose = False
-profile = None
 
 
 def echo(message, stderr=True):
@@ -46,10 +45,6 @@ def echo(message, stderr=True):
 
 
 def aws_command(cmd):
-    global profile
-    if profile:
-        aws_flags.extend(['--profile', profile])
-
     os.popen('mkdir -p /tmp/aws-cache').read()
 
     flags = " ".join(aws_flags)
@@ -94,10 +89,32 @@ def get_load_balancers(lookup_filter=''):
     return load_balancers['LoadBalancerDescriptions']
 
 
+def get_load_balancers_by_name(elb_names=None):
+    if not elb_names:
+        return None
+
+    if isinstance(elb_names, list):
+        elb_names = ' '.join(elb_names)
+
+    return get_load_balancers('--load-balancer-names %s' % elb_names)
+
+
 def get_ec2_instances(lookup_filter=''):
     lookup_cmd = "ec2 describe-instances %s" % lookup_filter
-    ec2_instances = aws_command(lookup_cmd)
-    return ec2_instances['Reservations']
+    reservations = aws_command(lookup_cmd)
+    return [ec2 for reservation in reservations['Reservations']
+            for ec2 in reservation['Instances']
+            if not isEc2Terminated(ec2)]
+
+
+def get_ec2_instances_by_id(instance_ids=None):
+    if not instance_ids:
+        return None
+
+    if isinstance(instance_ids, list):
+        instance_ids = ' '.join(instance_ids)
+
+    return get_ec2_instances('--instance-ids %s' % instance_ids)
 
 
 def get_security_groups(lookup_filter=''):
@@ -132,7 +149,7 @@ def get_network_acl(lookup_filter=''):
 
 
 def get_elb_rules(_id, fh):
-    elb = get_load_balancers("--load-balancer-names %s" % _id)[0]
+    elb = get_load_balancers_by_name(_id)[0]
     elb_node = """
     "%s_rules" [ style = "filled" penwidth = 0 fillcolor = "white" fontname = "Courier New" shape = "Mrecord" label =<
     <table border="1" cellborder="0" cellpadding="3" bgcolor="white">
@@ -521,6 +538,8 @@ def parseArgs():
                         help="AWS CLI profile to be used")
     parser.add_argument('--elb', default=None,
                         help="Which ELB to examine [all]")
+    parser.add_argument('--ec2', default=None,
+                        help="Which EC2 to examine [all]")
     parser.add_argument('-o', '--output', default=sys.stdout,
                         type=argparse.FileType('w'),
                         help="Which file to output to [stdout]")
@@ -567,12 +586,10 @@ def collectLayer2(elb):
     instances = [x['InstanceId'] for x in elb['Instances']]
     data['instances'] = instances
 
-    instance_filter = "--instance-ids %s" % " ".join(instances)
-    instances = get_ec2_instances(instance_filter)
+    instances = get_ec2_instances_by_id(instances)
     data['instances_raw'] = instances
 
     for i in instances:
-        i = i['Instances'][0]
         securitygroups = [x['GroupId'] for x in i['SecurityGroups']]
         subnets = [i['SubnetId']]
 
@@ -659,32 +676,59 @@ def generateFooter(fh):
 
 ###############################################################################
 def displayElbList(fh):
+    fh.write("ELB List:\n")
+
     for elb in get_load_balancers():
         elbname = elb['LoadBalancerName']
-        fh.write("%s\n" % elbname)
+        fh.write("- %s\n" % elbname)
+
+
+def displayEc2List(fh):
+    fh.write("EC2 List:\n")
+
+    for ec2instance in get_ec2_instances():
+        fh.write("- %s %s\n" % (ec2instance['InstanceId'], getEc2Name(ec2instance)))
+
+
+def getEc2Name(ec2instance):
+    for tag in ec2instance['Tags']:
+        if tag['Key'] == 'Name':
+            return tag['Value']
+
+
+def isEc2Terminated(ec2instance):
+    return ec2instance['State']['Code'] == 48
 
 
 ###############################################################################
 def main():
     args = parseArgs()
-    global verbose, profile
+    global verbose
 
-    profile = args.profile
     verbose = args.verbose
     fh = args.output
 
-    if args.elb is None:
+    if args.profile:
+        aws_flags.extend(['--profile', args.profile])
+
+    if args.elb is None and args.ec2 is None:
         displayElbList(fh)
+        displayEc2List(fh)
         return
 
-    for elb in get_load_balancers():
-        elbname = elb['LoadBalancerName']
-        if args.elb != elbname:
-            continue
-        if not elb['Scheme'] == 'internet-facing':
-            continue
-        layer_1 = collectLayer1(elb)
-        layer_2 = collectLayer2(elb)
+    if args.elb:
+        for elb in get_load_balancers():
+            elbname = elb['LoadBalancerName']
+            if args.elb != elbname:
+                continue
+            if not elb['Scheme'] == 'internet-facing':
+                continue
+            layer_1 = collectLayer1(elb)
+            layer_2 = collectLayer2(elb)
+
+    elif args.ec2:
+        # ec2 = get_ec2_instances_by_id(args.ec2)
+        sys.exit("Not implemented yet.")
 
     generateHeader(fh)
     generatePublicSubnet('1', layer_1, layer_2, fh=fh)

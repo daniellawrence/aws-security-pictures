@@ -18,6 +18,9 @@ execute() {
 
 OUTPUT=""
 
+# current dir
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 while getopts 'qhvbp:e:l:r:' flag; do
     case $flag in
         v) VERBOSE='-v';;
@@ -33,7 +36,7 @@ while getopts 'qhvbp:e:l:r:' flag; do
 done
 
 if [[ -n $OUTPUT ]]; then
-    execute awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE -o $OUTPUT.dot
+    execute $DIR/awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE -o $OUTPUT.dot
     execute dot -T png $OUTPUT.dot -o $OUTPUT.png $VERBOSE
 
     if type 1>/dev/null 2>/dev/null eog; then
@@ -42,5 +45,5 @@ if [[ -n $OUTPUT ]]; then
         execute open $OUTPUT.png
     fi
 else
-    execute awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE
+    execute $DIR/awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE
 fi

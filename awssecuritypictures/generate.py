@@ -49,11 +49,11 @@ def echo(message, stderr=True):
 
 # check if a string is valid json, if so return the string, else return False
 def is_json(jsonstring):
-  try:
-    json_object = json.loads(jsonstring)
-  except ValueError, e:
-    return False
-  return json_object
+    try:
+        json_object = json.loads(jsonstring)
+    except ValueError:
+        return False
+    return json_object
 
 
 def get_cached_command(cmd):
@@ -851,7 +851,7 @@ def main():
 
         if(args.rds is None):
             # the keys we're looking for
-            database_keys = ['database','db','rds']
+            database_keys = ['database', 'db', 'rds']
 
             # find the EC2
             if args.elb:
@@ -872,25 +872,25 @@ def main():
             aws_keys = {}
             for k,v in ec2_tags.iteritems():
                 for i in range (0, len(v)):
-                    key=v[i]['Key']
-                    value=v[i]['Value']
+                    key = v[i]['Key']
+                    value = v[i]['Value']
 
-                    aws_keys[key]=value
-                    
+                    aws_keys[key] = value
+
                     if(debug):
-                        print "i=%s Key=%s Value=%s" % (i, key,value)
+                        print "i=%s Key=%s Value=%s" % (i, key, value)
                     
                     # look for keys in the json data (if the data is json)
                     jsondata = is_json(value)
-                    if(jsondata != False):
-                        i2=0
+                    if(jsondata is not False):
+                        i2 = 0
                         for key2 in jsondata:
-                            i2=i2+1
+                            i2 = i2 + 1
 
-                            aws_keys[key2]=jsondata[key2]
-                            
+                            aws_keys[key2] = jsondata[key2]
+
                             if(debug):
-                                print "i=%s.%s Key=%s Value=%s" % (i,i2, key2,jsondata[key2])
+                                print "i=%s.%s Key=%s Value=%s" % (i, i2, key2, jsondata[key2])
 
             # check for the database_keys in the instance's keys
             for k in database_keys:
@@ -903,10 +903,10 @@ def main():
 
         if args.rds:
             # only show RDS flow if we match with an RDS in AWS
-            match=False
+            match = False
             for rds_instance in get_rds_instances():
-                if(rds_instance['DBInstanceIdentifier']==args.rds):
-                    match=True
+                if(rds_instance['DBInstanceIdentifier'] == args.rds):
+                    match = True
                     rds_data = collectRdsData([args.rds])
                     routetable_data = collectRoutetableData(ec2_data['subnets'])
 
@@ -918,13 +918,9 @@ def main():
                     generateSubnet(rds_data,
                                    fh,
                                    label="Database Subnet\n",
-                                   endpoint=rds_data["instances"])  
-            if(match==False):
-                print "sorry, '%s' does not appear to be an RDS." % (args.rds)                  
-
-
-
-
+                                   endpoint=rds_data["instances"])
+            if(match is False):
+                print "sorry, '%s' does not appear to be an RDS." % (args.rds)
 
 
 ###############################################################################

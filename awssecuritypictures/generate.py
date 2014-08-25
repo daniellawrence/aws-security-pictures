@@ -29,7 +29,7 @@ import argparse
 from collections import defaultdict
 from contextlib import contextmanager
 
-debug=False
+debug = False
 aws_flags = ['--no-verify-ssl']
 verbose = False
 bypass_cache = False
@@ -861,17 +861,15 @@ def main():
                                  for ec2instance in elb['Instances']]
                 ec2_instance = ec2_instances[0]
             else:
-                ec2_instance=args.ec2
+                ec2_instance = args.ec2
 
             # get all tags for this EC2
             ec2_tags = get_resource_tags(ec2_instance)
 
-
-
             # populate aws_keys with the keys for this instance
             aws_keys = {}
-            for k,v in ec2_tags.iteritems():
-                for i in range (0, len(v)):
+            for k, v in ec2_tags.iteritems():
+                for i in range(0, len(v)):
                     key = v[i]['Key']
                     value = v[i]['Value']
 
@@ -879,7 +877,7 @@ def main():
 
                     if(debug):
                         print "i=%s Key=%s Value=%s" % (i, key, value)
-                    
+
                     # look for keys in the json data (if the data is json)
                     jsondata = is_json(value)
                     if(jsondata is not False):

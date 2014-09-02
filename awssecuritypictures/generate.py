@@ -29,6 +29,7 @@ import argparse
 from collections import defaultdict
 from contextlib import contextmanager
 
+debug = False
 aws_flags = ['--no-verify-ssl']
 verbose = False
 bypass_cache = False
@@ -44,6 +45,15 @@ def echo(message, stderr=True):
     else:
         stream = sys.stdout
     stream.write(message)
+
+
+# check if a string is valid json, if so return the string, else return False
+def is_json(jsonstring):
+    try:
+        json_object = json.loads(jsonstring)
+    except ValueError:
+        return False
+    return json_object
 
 
 def get_cached_command(cmd):
@@ -117,6 +127,12 @@ def get_ec2_instances(lookup_filter=''):
     return [ec2 for reservation in reservations['Reservations']
             for ec2 in reservation['Instances']
             if not isEc2Terminated(ec2)]
+
+
+def get_resource_tags(lookup_filter=''):
+    lookup_cmd = "ec2 describe-tags --filters 'Name=resource-id,Values=%s'" % lookup_filter
+    tags = aws_command(lookup_cmd)
+    return tags
 
 
 def get_ec2_instances_by_id(instance_ids=None):
@@ -833,19 +849,76 @@ def main():
                        label="Private Subnet\n",
                        endpoint=ec2_data["instances"])
 
+        if(args.rds is None):
+            # the keys we're looking for
+            database_keys = ['database', 'db', 'rds']
+
+            # find the EC2
+            if args.elb:
+                elb = get_load_balancers_by_name(args.elb)[0]
+                elb_data = collectElbData(elb)
+                ec2_instances = [ec2instance['InstanceId']
+                                 for ec2instance in elb['Instances']]
+                ec2_instance = ec2_instances[0]
+            else:
+                ec2_instance = args.ec2
+
+            # get all tags for this EC2
+            ec2_tags = get_resource_tags(ec2_instance)
+
+            # populate aws_keys with the keys for this instance
+            aws_keys = {}
+            for k, v in ec2_tags.iteritems():
+                for i in range(0, len(v)):
+                    key = v[i]['Key']
+                    value = v[i]['Value']
+
+                    aws_keys[key] = value
+
+                    if(debug):
+                        print "i=%s Key=%s Value=%s" % (i, key, value)
+
+                    # look for keys in the json data (if the data is json)
+                    jsondata = is_json(value)
+                    if(jsondata is not False):
+                        i2 = 0
+                        for key2 in jsondata:
+                            i2 = i2 + 1
+
+                            aws_keys[key2] = jsondata[key2]
+
+                            if(debug):
+                                print "i=%s.%s Key=%s Value=%s" % (i, i2, key2, jsondata[key2])
+
+            # check for the database_keys in the instance's keys
+            for k in database_keys:
+                if k in aws_keys:
+                    if(debug):
+                        print "%s=%s" % (k, aws_keys[k])
+
+                    # set the rds param (this assumes only one rds tag, if there are more the last one will be used)
+                    args.rds = aws_keys[k]
+
         if args.rds:
-            rds_data = collectRdsData([args.rds])
-            routetable_data = collectRoutetableData(ec2_data['subnets'])
+            # only show RDS flow if we match with an RDS in AWS
+            match = False
+            for rds_instance in get_rds_instances():
+                if(rds_instance['DBInstanceIdentifier'] == args.rds):
+                    match = True
+                    rds_data = collectRdsData([args.rds])
+                    routetable_data = collectRoutetableData(ec2_data['subnets'])
 
-            generateRouters(routetable_data,
-                            fh,
-                            source=ec2_data,
-                            target=rds_data)
+                    generateRouters(routetable_data,
+                                    fh,
+                                    source=ec2_data,
+                                    target=rds_data)
 
-            generateSubnet(rds_data,
-                           fh,
-                           label="Database Subnet\n",
-                           endpoint=rds_data["instances"])
+                    generateSubnet(rds_data,
+                                   fh,
+                                   label="Database Subnet\n",
+                                   endpoint=rds_data["instances"])
+            if(match is False):
+                print "sorry, '%s' does not appear to be an RDS." % (args.rds)
 
 
 ###############################################################################

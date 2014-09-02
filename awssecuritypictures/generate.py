@@ -32,6 +32,7 @@ from contextlib import contextmanager
 aws_flags = ['--no-verify-ssl']
 verbose = False
 bypass_cache = False
+database_keys = ['database', 'db', 'rds']
 
 
 def echo(message, stderr=True):
@@ -849,10 +850,9 @@ def main():
                        label="Private Subnet\n",
                        endpoint=ec2_data["instances"])
 
-        if args.rds is None:
-            # the keys we're looking for
-            database_keys = ['database', 'db', 'rds']
+        rds = args.rds
 
+        if rds is None:
             # find the EC2
             if args.elb:
                 elb = get_load_balancers_by_name(args.elb)[0]
@@ -894,15 +894,15 @@ def main():
                     echo("%s=%s" % (k, aws_keys[k]))
 
                     # set the rds param (this assumes only one rds tag, if there are more the last one will be used)
-                    args.rds = aws_keys[k]
+                    rds = aws_keys[k]
 
-        if args.rds:
+        if rds:
             # only show RDS flow if we match with an RDS in AWS
             match = False
             for rds_instance in get_rds_instances():
-                if(rds_instance['DBInstanceIdentifier'] == args.rds):
+                if rds_instance['DBInstanceIdentifier'] == rds:
                     match = True
-                    rds_data = collectRdsData([args.rds])
+                    rds_data = collectRdsData([rds])
                     routetable_data = collectRoutetableData(ec2_data['subnets'])
 
                     generateRouters(routetable_data,
@@ -914,8 +914,9 @@ def main():
                                    fh,
                                    label="Database Subnet\n",
                                    endpoint=rds_data["instances"])
-            if(match is False):
-                print "sorry, '%s' does not appear to be an RDS." % (args.rds)
+
+            if not match:
+                echo("Sorry, '%s' does not appear to be an RDS." % (rds))
 
 
 ###############################################################################

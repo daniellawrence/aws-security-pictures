@@ -25,7 +25,7 @@ import os
 import json
 import sys
 import argparse
-from pprint import pprint
+# from pprint import pprint
 from collections import defaultdict
 from contextlib import contextmanager
 
@@ -792,6 +792,7 @@ def getEc2Name(ec2instance):
     for tag in ec2instance['Tags']:
         if tag['Key'] == 'Name':
             return tag['Value']
+
 
 def getEc2RdsId(ec2instances):
     for instance in ec2instances:

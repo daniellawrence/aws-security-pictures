@@ -25,13 +25,14 @@ import os
 import json
 import sys
 import argparse
-# from pprint import pprint
+from pprint import pprint
 from collections import defaultdict
 from contextlib import contextmanager
 
-aws_flags = ['--no-verify-ssl']
 verbose = False
 bypass_cache = False
+
+aws_flags = ['--no-verify-ssl']
 database_keys = ['database', 'db', 'rds']
 
 
@@ -150,9 +151,6 @@ def get_rds_instances(lookup_filter=''):
     lookup_cmd = "rds describe-db-instances %s" % lookup_filter
     db_instances = aws_command(lookup_cmd)
     return db_instances['DBInstances']
-    # return [ec2 for reservation in reservations['Reservations']
-    #         for ec2 in reservation['Instances']
-    #         if not isEc2Terminated(ec2)]
 
 
 def get_rds_instances_by_id(instance_ids=None):
@@ -795,6 +793,19 @@ def getEc2Name(ec2instance):
         if tag['Key'] == 'Name':
             return tag['Value']
 
+def getEc2RdsId(ec2instances):
+    for instance in ec2instances:
+        for tag in instance['Tags']:
+            if tag['Key'] in database_keys:
+                return tag['Value']
+
+            jsondata = parse_json(tag['Value'])
+
+            if jsondata:
+                for k, v in jsondata.iteritems():
+                    if k in database_keys:
+                        return v
+
 
 def isEc2Terminated(ec2instance):
     return ec2instance['State']['Code'] == 48
@@ -850,51 +861,7 @@ def main():
                        label="Private Subnet\n",
                        endpoint=ec2_data["instances"])
 
-        rds = args.rds
-
-        if rds is None:
-            # find the EC2
-            if args.elb:
-                elb = get_load_balancers_by_name(args.elb)[0]
-                elb_data = collectElbData(elb)
-                ec2_instances = [ec2instance['InstanceId']
-                                 for ec2instance in elb['Instances']]
-                ec2_instance = ec2_instances[0]
-            else:
-                ec2_instance = args.ec2
-
-            # get all tags for this EC2
-            ec2_tags = get_resource_tags(ec2_instance)
-
-            # populate aws_keys with the keys for this instance
-            aws_keys = {}
-            for k, v in ec2_tags.iteritems():
-                for i in range(0, len(v)):
-                    key = v[i]['Key']
-                    value = v[i]['Value']
-
-                    aws_keys[key] = value
-
-                    echo("i=%s Key=%s Value=%s" % (i, key, value))
-
-                    # look for keys in the json data (if the data is json)
-                    jsondata = parse_json(value)
-                    if jsondata:
-                        i2 = 0
-                        for key2 in jsondata:
-                            i2 = i2 + 1
-
-                            aws_keys[key2] = jsondata[key2]
-
-                            echo("i=%s.%s Key=%s Value=%s" % (i, i2, key2, jsondata[key2]))
-
-            # check for the database_keys in the instance's keys
-            for k in database_keys:
-                if k in aws_keys:
-                    echo("%s=%s" % (k, aws_keys[k]))
-
-                    # set the rds param (this assumes only one rds tag, if there are more the last one will be used)
-                    rds = aws_keys[k]
+        rds = args.rds if args.rds else getEc2RdsId(ec2_data['instances_raw'])
 
         if rds:
             # only show RDS flow if we match with an RDS in AWS

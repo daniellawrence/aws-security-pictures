@@ -29,7 +29,6 @@ import argparse
 from collections import defaultdict
 from contextlib import contextmanager
 
-debug = False
 aws_flags = ['--no-verify-ssl']
 verbose = False
 bypass_cache = False
@@ -47,12 +46,13 @@ def echo(message, stderr=True):
     stream.write(message)
 
 
-# check if a string is valid json, if so return the string, else return False
-def is_json(jsonstring):
+# check if a string is valid json, if so return the object, else return null
+def parse_json(jsonstring):
     try:
         json_object = json.loads(jsonstring)
     except ValueError:
-        return False
+        return None
+
     return json_object
 
 
@@ -849,7 +849,7 @@ def main():
                        label="Private Subnet\n",
                        endpoint=ec2_data["instances"])
 
-        if(args.rds is None):
+        if args.rds is None:
             # the keys we're looking for
             database_keys = ['database', 'db', 'rds']
 
@@ -875,26 +875,23 @@ def main():
 
                     aws_keys[key] = value
 
-                    if(debug):
-                        print "i=%s Key=%s Value=%s" % (i, key, value)
+                    echo("i=%s Key=%s Value=%s" % (i, key, value))
 
                     # look for keys in the json data (if the data is json)
-                    jsondata = is_json(value)
-                    if(jsondata is not False):
+                    jsondata = parse_json(value)
+                    if jsondata:
                         i2 = 0
                         for key2 in jsondata:
                             i2 = i2 + 1
 
                             aws_keys[key2] = jsondata[key2]
 
-                            if(debug):
-                                print "i=%s.%s Key=%s Value=%s" % (i, i2, key2, jsondata[key2])
+                            echo("i=%s.%s Key=%s Value=%s" % (i, i2, key2, jsondata[key2]))
 
             # check for the database_keys in the instance's keys
             for k in database_keys:
                 if k in aws_keys:
-                    if(debug):
-                        print "%s=%s" % (k, aws_keys[k])
+                    echo("%s=%s" % (k, aws_keys[k]))
 
                     # set the rds param (this assumes only one rds tag, if there are more the last one will be used)
                     args.rds = aws_keys[k]

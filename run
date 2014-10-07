@@ -18,6 +18,7 @@ execute() {
 }
 
 OUTPUT=""
+QUIET=false
 
 # current dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -30,7 +31,7 @@ while getopts 'qhvbp:e:l:r:' flag; do
         l) ELB="--elb $OPTARG"; OUTPUT=$OPTARG;;
         e) EC2="--ec2 $OPTARG"; OUTPUT=$OPTARG;;
         r) RDS="--rds $OPTARG";;
-        q) exec 1>/dev/null 2>/dev/null;;
+        q) exec 1>/dev/null 2>/dev/null; QUIET=true;;
         h|help) usage; exit 0;;
         *) usage; exit 64;;
     esac
@@ -40,10 +41,12 @@ if [[ -n $OUTPUT ]]; then
     execute $DIR/awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE -o $OUTPUT.dot
     execute dot -T png $OUTPUT.dot -o $OUTPUT.png $VERBOSE
 
-    if type 1>/dev/null 2>/dev/null eog; then
-        execute eog $OUTPUT.png
-    elif type 1>/dev/null 2>/dev/null open; then
-        execute open $OUTPUT.png
+    if [[ $QUIET == false ]]; then
+        if type 1>/dev/null 2>/dev/null eog; then
+            execute eog $OUTPUT.png
+        elif type 1>/dev/null 2>/dev/null open; then
+            execute open $OUTPUT.png
+        fi
     fi
 else
     execute $DIR/awssecuritypictures/generate.py $VERBOSE $BYPASS_CACHE $ELB $EC2 $RDS $PROFILE

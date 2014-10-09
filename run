@@ -13,7 +13,7 @@ execute() {
         echo "executing: $@" 1>&2
         $@
     else
-        $@ 1>/dev/null 2>/dev/null
+        $@ 2>/dev/null
     fi
 }
 
